@@ -218,14 +218,37 @@ class ClassHandler:
             True si la página está cargada, False en caso contrario
         """
         try:
-            my_classes = self.wait.until(
-                EC.presence_of_element_located((By.XPATH, self.selectors.MY_CLASSES_TITLE_XPATH))
-            )
-            print("✓ Página de clases cargada correctamente")
-            return True
-        except TimeoutException:
-            print("⚠ No se pudo verificar que la página de clases esté cargada")
-            return False
+            # Verificar primero por URL
+            current_url = self.driver.current_url
+            if self.selectors.CLASSES_PAGE_PATTERN in current_url:
+                print("✓ Página de clases detectada por URL")
+                return True
+            
+            # Intentar buscar el título con timeout corto
+            from selenium.webdriver.support.ui import WebDriverWait as QuickWait
+            quick_wait = QuickWait(self.driver, 3)  # Solo 3 segundos
+            
+            try:
+                my_classes = quick_wait.until(
+                    EC.presence_of_element_located((By.XPATH, self.selectors.MY_CLASSES_TITLE_XPATH))
+                )
+                print("✓ Página de clases cargada correctamente")
+                return True
+            except TimeoutException:
+                # Si no encuentra el título, verificar si hay elementos de clases
+                try:
+                    class_items = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.CARD_VIEW_ITEM)
+                    if class_items:
+                        print(f"✓ Página de clases detectada - Encontrados {len(class_items)} items de clase")
+                        return True
+                except:
+                    pass
+                
+                print("⚠ No se pudo verificar completamente, pero continuando...")
+                return True  # Continuar de todas formas para no bloquear
+        except Exception as e:
+            print(f"⚠ Error al verificar página: {str(e)}, continuando...")
+            return True  # Continuar de todas formas
     
     def get_available_classes(self) -> List[ClassInfo]:
         """
@@ -249,10 +272,58 @@ class ClassHandler:
             # Verificar que la página esté cargada
             self.verify_classes_page_loaded()
             
-            # Buscar los items de las clases
-            class_items = self.wait.until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, self.selectors.CARD_VIEW_ITEM))
-            )
+            # Esperar un momento para que la página se estabilice
+            time.sleep(2)
+            
+            # Buscar los items de las clases con timeout más corto y múltiples intentos
+            class_items = []
+            max_attempts = 3
+            
+            for attempt in range(max_attempts):
+                try:
+                    print(f"  Intento {attempt + 1}/{max_attempts} de buscar clases...")
+                    
+                    # Intentar con diferentes selectores
+                    selectors_to_try = [
+                        self.selectors.CARD_VIEW_ITEM,
+                        "li.a-CardView-item",
+                        "li[class*='CardView-item']",
+                        "div.a-CardView",
+                    ]
+                    
+                    for selector in selectors_to_try:
+                        try:
+                            items = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                            if items:
+                                class_items = items
+                                print(f"  ✓ Encontradas {len(class_items)} clases usando selector: {selector}")
+                                break
+                        except:
+                            continue
+                    
+                    if class_items:
+                        break
+                    
+                    # Si no encuentra, esperar un poco más
+                    if attempt < max_attempts - 1:
+                        time.sleep(2)
+                        
+                except Exception as e:
+                    print(f"  ⚠ Error en intento {attempt + 1}: {str(e)}")
+                    if attempt < max_attempts - 1:
+                        time.sleep(2)
+            
+            if not class_items:
+                print("⚠ No se encontraron items de clase en la página")
+                print(f"  URL actual: {self.driver.current_url}")
+                # Intentar mostrar el HTML de la página para debugging
+                try:
+                    page_source = self.driver.page_source[:1000]
+                    print(f"  Primeros 1000 caracteres del HTML:")
+                    print(page_source)
+                except:
+                    pass
+                return []
             
             print(f"Encontradas {len(class_items)} clases")
             

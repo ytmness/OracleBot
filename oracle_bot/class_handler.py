@@ -72,26 +72,71 @@ class ClassHandler:
                 print(f"✓ Ya estamos en la página de clases")
                 return True
             
-            # Método 1: Intentar navegar directamente a la URL de clases
-            print("\n[Método 1] Navegación directa a URL de clases...")
+            # Método 1: Buscar enlace en la página que apunte a 63000:100
+            print("\n[Método 1] Buscando enlace a página de clases en la página actual...")
             try:
-                print(f"Navegando a: {self.selectors.CLASSES_PAGE_URL}")
+                # Buscar todos los enlaces que contengan el patrón 63000:100
+                links = self.driver.find_elements(By.XPATH, "//a[contains(@href, '63000:100')]")
+                
+                if links:
+                    print(f"  Encontrados {len(links)} enlaces a página de clases")
+                    # Usar el primer enlace encontrado
+                    link = links[0]
+                    link_url = link.get_attribute('href')
+                    print(f"  Enlace encontrado: {link_url}")
+                    
+                    # Hacer clic en el enlace
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", link)
+                    time.sleep(0.5)
+                    link.click()
+                    time.sleep(5)
+                    
+                    new_url = self.driver.current_url
+                    print(f"  URL después del clic: {new_url}")
+                    
+                    if self.selectors.CLASSES_PAGE_PATTERN in new_url:
+                        print(f"✓ Navegación por enlace exitosa")
+                        return True
+                else:
+                    print("  No se encontraron enlaces con el patrón 63000:100")
+            except Exception as e:
+                print(f"  ⚠ Error buscando enlaces: {str(e)}")
+            
+            # Método 2: Intentar navegar directamente a la URL de clases
+            print("\n[Método 2] Navegación directa a URL de clases...")
+            try:
+                print(f"  Navegando a: {self.selectors.CLASSES_PAGE_URL}")
                 self.driver.get(self.selectors.CLASSES_PAGE_URL)
                 time.sleep(5)  # Esperar más tiempo para que cargue
                 
                 new_url = self.driver.current_url
-                print(f"URL después de navegación: {new_url}")
+                print(f"  URL después de navegación: {new_url}")
                 
                 # Verificar que cargó correctamente
                 if self.selectors.CLASSES_PAGE_PATTERN in new_url:
                     print(f"✓ Navegación directa exitosa")
                     return True
                 else:
-                    print(f"⚠ URL no coincide con el patrón esperado")
+                    print(f"  ⚠ URL no coincide con el patrón esperado")
             except Exception as e:
-                print(f"✗ Error en navegación directa: {str(e)}")
+                print(f"  ✗ Error en navegación directa: {str(e)}")
                 import traceback
                 traceback.print_exc()
+            
+            # Método 3: Usar JavaScript para navegar
+            print("\n[Método 3] Navegación mediante JavaScript...")
+            try:
+                self.driver.execute_script(f"window.location.href = '{self.selectors.CLASSES_PAGE_URL}';")
+                time.sleep(5)
+                
+                new_url = self.driver.current_url
+                print(f"  URL después de JavaScript: {new_url}")
+                
+                if self.selectors.CLASSES_PAGE_PATTERN in new_url:
+                    print(f"✓ Navegación por JavaScript exitosa")
+                    return True
+            except Exception as e:
+                print(f"  ⚠ Error en navegación JavaScript: {str(e)}")
             
             # Método 4: Buscar y hacer clic en la tarjeta de "View course materials assigned by a faculty member"
             print("\n[Método 4] Buscando tarjeta de materiales del curso...")

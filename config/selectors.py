@@ -11,6 +11,8 @@ class Selectors:
     # URLs
     LANDING_PAGE_URL: str = "https://academy.oracle.com/en/oa-web-overview.html"
     STUDENT_HUB_URL: str = "https://academy.oracle.com/pls/f?p=63000"
+    CLASSES_PAGE_URL: str = "https://academy.oracle.com/pls/f?p=63000:100"
+    CLASSES_PAGE_PATTERN: str = "63000:100"  # Patrón para detectar página de clases
     
     # Login - Hover Sign In
     HOVER_SIGN_IN: str = "a.u02user[href='#usermenu']"

@@ -54,6 +54,7 @@ class ClassHandler:
     def navigate_to_classes(self) -> bool:
         """
         Navega a la página de clases haciendo clic en la tarjeta de materiales del curso
+        o navegando directamente a la URL
         
         Returns:
             True si se navegó correctamente, False en caso contrario
@@ -61,8 +62,28 @@ class ClassHandler:
         try:
             print("\nNavegando a la página de clases...")
             
-            # Buscar la tarjeta de "View course materials assigned by a faculty member"
+            # Verificar si ya estamos en la página de clases
+            current_url = self.driver.current_url
+            if self.selectors.CLASSES_PAGE_PATTERN in current_url:
+                print(f"✓ Ya estamos en la página de clases - URL: {current_url}")
+                return True
+            
+            # Método 1: Intentar navegar directamente a la URL de clases
             try:
+                print("Intentando navegar directamente a la URL de clases...")
+                self.driver.get(self.selectors.CLASSES_PAGE_URL)
+                time.sleep(3)
+                
+                # Verificar que cargó correctamente
+                if self.selectors.CLASSES_PAGE_PATTERN in self.driver.current_url:
+                    print(f"✓ Navegación directa exitosa - URL: {self.driver.current_url}")
+                    return True
+            except Exception as e:
+                print(f"⚠ Error en navegación directa: {str(e)}")
+            
+            # Método 2: Buscar y hacer clic en la tarjeta de "View course materials assigned by a faculty member"
+            try:
+                print("Buscando tarjeta de materiales del curso...")
                 # Intentar encontrar el div con el texto específico
                 course_materials_card = self.wait.until(
                     EC.element_to_be_clickable((By.XPATH, self.selectors.COURSE_MATERIALS_CARD_XPATH))
@@ -85,15 +106,20 @@ class ClassHandler:
                 time.sleep(3)
                 
                 # Verificar que estamos en la página de clases
-                try:
-                    self.wait.until(
-                        EC.presence_of_element_located((By.XPATH, self.selectors.MY_CLASSES_TITLE_XPATH))
-                    )
-                    print("✓ Página de clases cargada correctamente")
+                if self.selectors.CLASSES_PAGE_PATTERN in self.driver.current_url:
+                    print(f"✓ Página de clases cargada correctamente - URL: {self.driver.current_url}")
                     return True
-                except:
-                    print("⚠ No se pudo verificar la carga de la página de clases, pero continuando...")
-                    return True
+                else:
+                    # Verificar por elemento
+                    try:
+                        self.wait.until(
+                            EC.presence_of_element_located((By.XPATH, self.selectors.MY_CLASSES_TITLE_XPATH))
+                        )
+                        print("✓ Página de clases cargada correctamente (verificado por elemento)")
+                        return True
+                    except:
+                        print("⚠ No se pudo verificar la carga de la página de clases")
+                        return True  # Continuar de todas formas
                     
             except TimeoutException:
                 # Si no se encuentra, intentar buscar cualquier div.t-Card-body clickeable
@@ -110,7 +136,10 @@ class ClassHandler:
                                 time.sleep(0.5)
                                 card.click()
                                 time.sleep(3)
-                                return True
+                                
+                                if self.selectors.CLASSES_PAGE_PATTERN in self.driver.current_url:
+                                    print(f"✓ Página de clases cargada - URL: {self.driver.current_url}")
+                                    return True
                         except:
                             continue
                     

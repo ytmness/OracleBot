@@ -221,6 +221,11 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler):
                             
                             # Completar secciones hasta la seleccionada
                             for i in range(section_choice):
+                                # Verificar que el índice es válido
+                                if i >= len(sections):
+                                    print(f"\n⚠ No hay más secciones disponibles (índice {i+1} fuera de rango)")
+                                    break
+                                
                                 section = sections[i]
                                 
                                 if section.is_complete:
@@ -237,10 +242,19 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler):
                                     class_handler.complete_section(max_quizzes=1)
                                     
                                     # Volver a la lista de secciones
-                                    class_handler.go_back_to_sections()
+                                    if not class_handler.go_back_to_sections():
+                                        print("⚠ No se pudo volver a la lista de secciones, intentando refrescar...")
+                                        # Intentar refrescar la página
+                                        class_handler.driver.refresh()
+                                        time.sleep(3)
                                     
                                     # Refrescar la lista de secciones
+                                    print("\nRefrescando lista de secciones...")
                                     sections = class_handler.get_sections()
+                                    
+                                    if not sections:
+                                        print("⚠ No se pudieron obtener las secciones, deteniendo...")
+                                        break
                                 
                         except ValueError:
                             print("⚠ Por favor ingrese un número válido")

@@ -522,32 +522,52 @@ class ClassHandler:
                 EC.presence_of_all_elements_located((By.CSS_SELECTOR, self.selectors.SECTION_ITEM))
             )
             
-            print(f"Encontradas {len(section_items)} secciones")
+            print(f"Encontradas {len(section_items)} elementos de sección")
             
+            # Secciones que no son realmente secciones de contenido (filtrar)
+            invalid_sections = [
+                "sections in course",
+                "level of difficulty",
+                "status",
+                "course resources"  # A veces Section 0 es solo recursos
+            ]
+            
+            valid_index = 1
             for index, item in enumerate(section_items, start=1):
                 try:
                     # Obtener título de la sección
                     title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
                     title = title_elem.text.strip()
                     
+                    # Filtrar secciones inválidas
+                    title_lower = title.lower()
+                    is_invalid = any(invalid in title_lower for invalid in invalid_sections)
+                    
+                    if is_invalid:
+                        print(f"  ⏭ Saltando sección no válida: {title}")
+                        continue
+                    
                     # Verificar si está completada (buscar indicador 100% o clase is-complete)
                     is_complete = False
                     try:
                         # Buscar en el elemento padre si tiene clase is-complete
                         parent = item.find_element(By.XPATH, "./..")
-                        if "is-complete" in parent.get_attribute("class"):
+                        parent_class = parent.get_attribute("class") or ""
+                        if "is-complete" in parent_class:
                             is_complete = True
                     except:
                         pass
                     
-                    section_info = SectionInfo(index, title, item, is_complete)
+                    section_info = SectionInfo(valid_index, title, item, is_complete)
                     sections.append(section_info)
                     print(f"  {section_info}")
+                    valid_index += 1
                     
                 except Exception as e:
                     print(f"  ⚠ Error al procesar sección {index}: {str(e)}")
                     continue
             
+            print(f"\n✓ Total de secciones válidas encontradas: {len(sections)}")
             return sections
             
         except TimeoutException:
@@ -683,20 +703,41 @@ class ClassHandler:
             
             # Intentar usar el botón de retroceso del navegador
             self.driver.back()
-            time.sleep(2)
+            time.sleep(3)  # Esperar más tiempo
             
-            # Verificar que estamos en la página de secciones
+            # Verificar que estamos en la página de secciones con timeout corto
+            from selenium.webdriver.support.ui import WebDriverWait as QuickWait
+            quick_wait = QuickWait(self.driver, 5)
+            
             try:
-                self.wait.until(
+                quick_wait.until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, self.selectors.SECTION_ITEM))
                 )
                 print("✓ Regresado a la lista de secciones")
                 return True
             except:
-                print("⚠ No se pudo verificar que estamos en la lista de secciones")
-                return True  # Continuar de todas formas
+                # Si no encuentra por selector, verificar por URL
+                current_url = self.driver.current_url
+                if "63000:15" in current_url or "63000:14" in current_url:
+                    print("✓ Regresado a la página de secciones (verificado por URL)")
+                    return True
+                else:
+                    print(f"⚠ No se pudo verificar - URL actual: {current_url}")
+                    # Intentar navegar directamente a la página de la clase
+                    print("Intentando navegar directamente a la página de la clase...")
+                    # La URL de la clase debería estar guardada, pero por ahora intentamos volver
+                    self.driver.back()
+                    time.sleep(3)
+                    return True  # Continuar de todas formas
             
         except Exception as e:
             print(f"⚠ Error al navegar de vuelta: {str(e)}")
-            return False
+            # Intentar navegar directamente usando JavaScript
+            try:
+                print("Intentando navegar con JavaScript...")
+                self.driver.execute_script("window.history.go(-2);")  # Retroceder 2 páginas
+                time.sleep(3)
+                return True
+            except:
+                return False
 

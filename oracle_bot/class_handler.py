@@ -920,7 +920,7 @@ class ClassHandler:
         Extrae la pregunta y las opciones de respuesta del quiz actual
         
         Returns:
-            Diccionario con 'question' y 'choices', o None si hay error
+            Diccionario con 'question', 'choices', y 'allows_multiple', o None si hay error
         """
         try:
             # Extraer la pregunta
@@ -944,6 +944,24 @@ class ClassHandler:
             except:
                 pass
             
+            # Detectar si permite múltiples respuestas
+            allows_multiple = False
+            try:
+                # Buscar el contenedor de opciones para verificar el tipo
+                choice_container = self.driver.find_element(By.CSS_SELECTOR, "div.choice-Container")
+                parent = choice_container.find_element(By.XPATH, "./ancestor::div[contains(@id, 'Choices')]")
+                
+                # Verificar si dice "multiple" o "checkbox" en algún lugar
+                container_text = parent.get_attribute("aria-label") or ""
+                page_text = self.driver.page_source.lower()
+                
+                if "multiple" in container_text.lower() or "checkbox" in page_text or "select all" in page_text:
+                    allows_multiple = True
+                    print("  ℹ Detectado: Permite múltiples respuestas")
+            except:
+                # Por defecto, asumir que es de una sola respuesta (radio buttons)
+                pass
+            
             # Extraer todas las opciones
             choices = []
             try:
@@ -958,11 +976,17 @@ class ClassHandler:
                         # Verificar si está seleccionada
                         is_selected = button.get_attribute("aria-checked") == "true"
                         
+                        # Verificar el tipo de respuesta (radio vs checkbox)
+                        response_type = button.get_attribute("data-response-type") or "1"
+                        role = button.get_attribute("role") or ""
+                        
                         choices.append({
                             "index": i,
                             "text": choice_text,
                             "is_selected": is_selected,
-                            "element": button
+                            "element": button,
+                            "response_type": response_type,
+                            "role": role
                         })
                     except:
                         continue
@@ -974,19 +998,21 @@ class ClassHandler:
             return {
                 "question_number": question_number,
                 "question": question_text,
-                "choices": choices
+                "choices": choices,
+                "allows_multiple": allows_multiple
             }
             
         except Exception as e:
             print(f"  ✗ Error al extraer pregunta y opciones: {str(e)}")
             return None
     
-    def select_answer(self, choice_index: int) -> bool:
+    def select_answer(self, choice_index: int, allow_multiple: bool = False) -> bool:
         """
         Selecciona una respuesta haciendo clic en el botón de opción
         
         Args:
             choice_index: Índice de la opción a seleccionar (1-based)
+            allow_multiple: Si es True, permite seleccionar múltiples opciones
             
         Returns:
             True si se seleccionó correctamente, False en caso contrario
@@ -1000,6 +1026,13 @@ class ClassHandler:
             
             target_button = choice_buttons[choice_index - 1]
             
+            # Verificar si ya está seleccionada (solo para múltiples)
+            if allow_multiple:
+                is_already_selected = target_button.get_attribute("aria-checked") == "true"
+                if is_already_selected:
+                    print(f"  ℹ Opción {choice_index} ya está seleccionada")
+                    return True
+            
             # Hacer clic en la opción
             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", target_button)
             time.sleep(0.3)
@@ -1011,6 +1044,30 @@ class ClassHandler:
             
         except Exception as e:
             print(f"  ✗ Error al seleccionar respuesta: {str(e)}")
+            return False
+    
+    def select_multiple_answers(self, choice_indices: List[int]) -> bool:
+        """
+        Selecciona múltiples respuestas
+        
+        Args:
+            choice_indices: Lista de índices de opciones a seleccionar (1-based)
+            
+        Returns:
+            True si se seleccionaron correctamente, False en caso contrario
+        """
+        try:
+            success_count = 0
+            for index in choice_indices:
+                if self.select_answer(index, allow_multiple=True):
+                    success_count += 1
+                    time.sleep(0.5)  # Pequeña pausa entre selecciones
+            
+            print(f"  ✓ {success_count}/{len(choice_indices)} opciones seleccionadas")
+            return success_count > 0
+            
+        except Exception as e:
+            print(f"  ✗ Error al seleccionar múltiples respuestas: {str(e)}")
             return False
     
     def get_answer_from_openai(self, question_data: Dict) -> Optional[int]:
@@ -1138,7 +1195,20 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             except:
                 pass
             
-            print("  ⚠ No se encontró botón Next/Submit")
+            # Método 4: Buscar botón "Complete Assessment" (al final del quiz)
+            try:
+                complete_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.COMPLETE_ASSESSMENT_BUTTON)
+                print("  Encontrado botón 'Complete Assessment'")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                time.sleep(0.5)
+                complete_button.click()
+                time.sleep(3)
+                print("  ✓ Assessment completado")
+                return False  # Quiz terminado
+            except:
+                pass
+            
+            print("  ⚠ No se encontró botón Next/Submit/Complete")
             return False
             
         except Exception as e:

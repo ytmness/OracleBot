@@ -125,4 +125,8 @@ class Selectors:
     SUBMIT_QUIZ_BUTTON: str = "button#quiz-submit"
     SUBMIT_QUIZ_BUTTON_XPATH: str = "//button[@id='quiz-submit']//span[contains(text(), 'Submit Answer')]"
     SUBMIT_ANSWER_BUTTON: str = "button#quiz-submit"  # Alias para claridad
+    
+    # Botón Complete Assessment (al final del quiz)
+    COMPLETE_ASSESSMENT_BUTTON: str = "button[data-otel-label='CONFIRMCOMPLETE']"
+    COMPLETE_ASSESSMENT_BUTTON_XPATH: str = "//button[@data-otel-label='CONFIRMCOMPLETE']//span[contains(text(), 'Complete Assessment')]"
 

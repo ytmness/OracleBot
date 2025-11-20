@@ -150,3 +150,8 @@ La página muestra múltiples warnings de "Duplicate ID fetched or added without
 
 🔗 **GitHub**: https://github.com/ytmness/OracleBot
 
+## Documentación Adicional
+
+- **[PROBLEMA.md](PROBLEMA.md)**: Descripción detallada del problema original de escritura en campos
+- **[SOLUCION_VENTANAS.md](SOLUCION_VENTANAS.md)**: Documentación del problema de manejo de ventanas y su solución (para referencia futura)
+

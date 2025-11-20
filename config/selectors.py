@@ -122,5 +122,7 @@ class Selectors:
     
     # Botón Next/Submit (para avanzar después de responder)
     NEXT_QUESTION_BUTTON: str = "button[data-otel-label='NEXT']"
-    SUBMIT_QUIZ_BUTTON: str = "button[data-otel-label='SUBMIT']"
+    SUBMIT_QUIZ_BUTTON: str = "button#quiz-submit"
+    SUBMIT_QUIZ_BUTTON_XPATH: str = "//button[@id='quiz-submit']//span[contains(text(), 'Submit Answer')]"
+    SUBMIT_ANSWER_BUTTON: str = "button#quiz-submit"  # Alias para claridad
 

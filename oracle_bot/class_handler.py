@@ -1078,25 +1078,73 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             True si avanzó correctamente, False si el quiz terminó
         """
         try:
-            # Buscar botón Next o Submit
+            # Buscar botón Next o Submit con múltiples métodos
+            next_button = None
+            submit_button = None
+            
+            # Método 1: Buscar botón Next
             try:
                 next_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.NEXT_QUESTION_BUTTON)
                 print("  Avanzando a siguiente pregunta...")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", next_button)
+                time.sleep(0.3)
                 next_button.click()
                 time.sleep(3)
                 return True
             except:
+                pass
+            
+            # Método 2: Buscar botón Submit por ID
+            try:
+                submit_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.SUBMIT_QUIZ_BUTTON)
+                print("  Enviando respuesta del quiz...")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", submit_button)
+                time.sleep(0.3)
+                submit_button.click()
+                time.sleep(3)
+                
+                # Después de submit, puede que haya un botón para continuar o el quiz terminó
+                # Verificar si hay más preguntas
                 try:
-                    submit_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.SUBMIT_QUIZ_BUTTON)
-                    print("  Enviando quiz...")
-                    submit_button.click()
-                    time.sleep(3)
-                    return False  # Quiz terminado
+                    # Intentar encontrar la siguiente pregunta
+                    time.sleep(2)
+                    question_elem = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_TEXT)
+                    print("  Continuando con siguiente pregunta...")
+                    return True
                 except:
-                    print("  ⚠ No se encontró botón Next/Submit")
+                    print("  ✓ Quiz completado")
+                    return False  # Quiz terminado
+            except:
+                pass
+            
+            # Método 3: Buscar por texto "Submit Answer"
+            try:
+                submit_button = self.driver.find_element(By.XPATH, self.selectors.SUBMIT_QUIZ_BUTTON_XPATH)
+                print("  Enviando respuesta del quiz (por texto)...")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", submit_button)
+                time.sleep(0.3)
+                submit_button.click()
+                time.sleep(3)
+                
+                # Verificar si hay más preguntas
+                try:
+                    time.sleep(2)
+                    question_elem = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_TEXT)
+                    print("  Continuando con siguiente pregunta...")
+                    return True
+                except:
+                    print("  ✓ Quiz completado")
                     return False
+            except:
+                pass
+            
+            print("  ⚠ No se encontró botón Next/Submit")
+            return False
+            
         except Exception as e:
             print(f"  ✗ Error al avanzar: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def complete_quiz_with_ai(self) -> bool:

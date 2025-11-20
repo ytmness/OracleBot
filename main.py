@@ -5,6 +5,7 @@ import getpass
 import os
 import sys
 import time
+import configparser
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -12,6 +13,32 @@ from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
 from oracle_bot.login_handler import LoginHandler
 from oracle_bot.class_handler import ClassHandler, ClassInfo, SectionInfo
+
+
+def get_openai_api_key() -> str:
+    """
+    Obtiene la API key de OpenAI desde variables de entorno o archivo de configuración
+    
+    Returns:
+        API key de OpenAI o None si no se encuentra
+    """
+    # Primero intentar desde variable de entorno
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        return api_key
+    
+    # Si no está en variables de entorno, intentar desde config.ini
+    try:
+        config = configparser.ConfigParser()
+        config_path = os.path.join(os.path.dirname(__file__), 'config.ini')
+        if os.path.exists(config_path):
+            config.read(config_path)
+            if 'openai' in config and 'api_key' in config['openai']:
+                return config['openai']['api_key']
+    except Exception as e:
+        print(f"⚠ Error al leer config.ini: {str(e)}")
+    
+    return None
 
 
 def setup_driver(headless: bool = False) -> webdriver.Chrome:
@@ -313,11 +340,15 @@ def main():
             time.sleep(2)
             
             # Obtener API key de OpenAI si está disponible
-            openai_api_key = os.getenv("OPENAI_API_KEY")
-            if not openai_api_key:
-                print("\n⚠ OPENAI_API_KEY no encontrada en variables de entorno")
-                print("  Puedes configurarla con: set OPENAI_API_KEY=tu_clave")
-                print("  O el bot usará respuestas aleatorias")
+            openai_api_key = get_openai_api_key()
+            if openai_api_key:
+                print("\n✓ API key de OpenAI encontrada")
+            else:
+                print("\n⚠ API key de OpenAI no encontrada")
+                print("  Puedes configurarla en:")
+                print("  1. Variable de entorno: set OPENAI_API_KEY=tu_clave")
+                print("  2. Archivo config.ini: [openai] api_key = tu_clave")
+                print("  Sin API key, el bot usará la primera opción como respuesta")
             
             # Crear manejador de clases
             class_handler = ClassHandler(driver, openai_api_key=openai_api_key)

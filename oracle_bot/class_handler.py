@@ -1289,13 +1289,18 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                 answer_indices = self.get_answer_from_openai(question_data)
                 
                 # Seleccionar la(s) respuesta(s)
+                answer_selected = False
                 if question_data.get('allows_multiple', False):
                     # Seleccionar múltiples respuestas
                     if self.select_multiple_answers(answer_indices):
                         questions_answered += 1
                         print(f"  ✓ Pregunta {questions_answered} respondida (múltiples opciones)")
+                        answer_selected = True
                     else:
                         print("  ⚠ No se pudieron seleccionar las respuestas múltiples")
+                        consecutive_errors += 1
+                        if consecutive_errors >= max_consecutive_errors:
+                            break
                         continue
                 else:
                     # Seleccionar una sola respuesta
@@ -1303,12 +1308,24 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                         if self.select_answer(answer_indices[0], allow_multiple=False):
                             questions_answered += 1
                             print(f"  ✓ Pregunta {questions_answered} respondida")
+                            answer_selected = True
                         else:
                             print("  ⚠ No se pudo seleccionar la respuesta")
+                            consecutive_errors += 1
+                            if consecutive_errors >= max_consecutive_errors:
+                                break
                             continue
                     else:
                         print("  ⚠ No se obtuvo respuesta de OpenAI")
+                        consecutive_errors += 1
+                        if consecutive_errors >= max_consecutive_errors:
+                            break
                         continue
+                
+                # Si se seleccionó la respuesta correctamente, avanzar
+                if answer_selected:
+                    # Resetear contador de errores
+                    consecutive_errors = 0
                     
                     # Esperar un momento antes de avanzar
                     time.sleep(1)
@@ -1322,10 +1339,6 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                     
                     # Esperar a que cargue la siguiente pregunta
                     time.sleep(2)
-                else:
-                    print("  ⚠ No se pudo seleccionar la respuesta, reintentando...")
-                    time.sleep(2)
-                    continue
             
             print(f"\n  {'='*50}")
             print(f"  RESUMEN: {questions_answered} preguntas respondidas")

@@ -4,12 +4,14 @@ Script principal para automatización de Oracle Academy
 import getpass
 import os
 import sys
+import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.core.os_manager import ChromeType
 from oracle_bot.login_handler import LoginHandler
+from oracle_bot.class_handler import ClassHandler, ClassInfo, SectionInfo
 
 
 def setup_driver(headless: bool = False) -> webdriver.Chrome:
@@ -143,6 +145,130 @@ def get_credentials():
     return username, password
 
 
+def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler):
+    """
+    Menú interactivo para seleccionar clases y secciones
+    
+    Args:
+        driver: Instancia del WebDriver
+        class_handler: Instancia del ClassHandler
+    """
+    try:
+        while True:
+            print("\n" + "=" * 60)
+            print("MENÚ PRINCIPAL")
+            print("=" * 60)
+            print("1. Ver clases disponibles")
+            print("2. Seleccionar clase y completar secciones")
+            print("3. Salir")
+            
+            choice = input("\nSeleccione una opción (1-3): ").strip()
+            
+            if choice == "1":
+                # Ver clases disponibles
+                classes = class_handler.get_available_classes()
+                if classes:
+                    print(f"\n✓ Total de clases encontradas: {len(classes)}")
+                else:
+                    print("\n⚠ No se encontraron clases disponibles")
+            
+            elif choice == "2":
+                # Seleccionar clase y completar secciones
+                classes = class_handler.get_available_classes()
+                
+                if not classes:
+                    print("\n⚠ No hay clases disponibles")
+                    continue
+                
+                # Mostrar clases y permitir selección
+                print("\n" + "=" * 60)
+                print("CLASES DISPONIBLES")
+                print("=" * 60)
+                for cls in classes:
+                    print(f"\n{cls}")
+                
+                try:
+                    class_choice = int(input(f"\nSeleccione el número de clase (1-{len(classes)}): ").strip())
+                    
+                    if class_choice < 1 or class_choice > len(classes):
+                        print("⚠ Selección inválida")
+                        continue
+                    
+                    selected_class = classes[class_choice - 1]
+                    
+                    # Seleccionar la clase
+                    if class_handler.select_class(selected_class):
+                        # Obtener secciones
+                        sections = class_handler.get_sections()
+                        
+                        if not sections:
+                            print("\n⚠ No se encontraron secciones")
+                            continue
+                        
+                        # Mostrar secciones y permitir selección
+                        print("\n" + "=" * 60)
+                        print("SECCIONES DISPONIBLES")
+                        print("=" * 60)
+                        for section in sections:
+                            print(f"\n{section}")
+                        
+                        try:
+                            section_choice = int(input(f"\nSeleccione hasta qué sección completar (1-{len(sections)}): ").strip())
+                            
+                            if section_choice < 1 or section_choice > len(sections):
+                                print("⚠ Selección inválida")
+                                continue
+                            
+                            # Completar secciones hasta la seleccionada
+                            for i in range(section_choice):
+                                section = sections[i]
+                                
+                                if section.is_complete:
+                                    print(f"\n⏭ Sección {i+1} ya está completada, saltando...")
+                                    continue
+                                
+                                print(f"\n{'='*60}")
+                                print(f"PROCESANDO SECCIÓN {i+1}/{section_choice}: {section.title}")
+                                print(f"{'='*60}")
+                                
+                                # Seleccionar sección
+                                if class_handler.select_section(section):
+                                    # Completar la sección (hacer el primer quiz)
+                                    class_handler.complete_section(max_quizzes=1)
+                                    
+                                    # Volver a la lista de secciones
+                                    class_handler.go_back_to_sections()
+                                    
+                                    # Refrescar la lista de secciones
+                                    sections = class_handler.get_sections()
+                                
+                        except ValueError:
+                            print("⚠ Por favor ingrese un número válido")
+                        except KeyboardInterrupt:
+                            print("\n\nOperación cancelada por el usuario")
+                            break
+                    
+                except ValueError:
+                    print("⚠ Por favor ingrese un número válido")
+                except KeyboardInterrupt:
+                    print("\n\nOperación cancelada por el usuario")
+                    break
+            
+            elif choice == "3":
+                print("\nSaliendo...")
+                break
+            
+            else:
+                print("⚠ Opción inválida, por favor seleccione 1, 2 o 3")
+    
+    except KeyboardInterrupt:
+        print("\n\nProceso interrumpido por el usuario")
+    except Exception as e:
+        print(f"\n✗ Error en el menú: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+
 def main():
     """Función principal"""
     driver = None
@@ -167,9 +293,13 @@ def main():
         success = login_handler.login(username, password)
         
         if success:
-            print("\n✓ Proceso completado exitosamente")
-            print("\nPresione Enter para cerrar el navegador...")
-            input()
+            print("\n✓ Login exitoso")
+            
+            # Crear manejador de clases
+            class_handler = ClassHandler(driver)
+            
+            # Menú interactivo para seleccionar clases y secciones
+            run_class_menu(driver, class_handler)
         else:
             print("\n✗ El proceso de login no se completó correctamente")
             print("\nPresione Enter para cerrar el navegador...")

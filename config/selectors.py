@@ -59,7 +59,42 @@ class Selectors:
     CARD_VIEW_ITEM: str = "li.a-CardView-item"
     CARD_VIEW_ITEM_XPATH: str = "//li[@class='a-CardView-item']"
     
+    # Información de clase en Card
+    CLASS_TITLE: str = "h3.a-CardView-title"
+    CLASS_TITLE_XPATH: str = "//h3[@class='a-CardView-title']"
+    CLASS_SUBTITLE: str = "h4.a-CardView-subTitle"
+    CLASS_BODY: str = "div.a-CardView-mainContent"
+    
     # Botón Take Class
     TAKE_CLASS_BUTTON: str = "a.a-CardView-button.t-Button--hot"
     TAKE_CLASS_BUTTON_XPATH: str = "//a[@class='a-CardView-button t-Button--hot']//span[contains(text(), 'Take Class')]"
+    
+    # Secciones de clase
+    SECTION_ITEM: str = "a.t-MediaList-itemWrap"
+    SECTION_ITEM_XPATH: str = "//a[@class='t-MediaList-itemWrap']"
+    SECTION_TITLE: str = "h3.t-MediaList-title"
+    SECTION_TITLE_XPATH: str = "//h3[@class='t-MediaList-title']"
+    
+    # Indicador de completado (100%)
+    COMPLETED_INDICATOR: str = "div:contains('100%')"
+    COMPLETED_INDICATOR_XPATH: str = "//div[contains(text(), '100%')]"
+    
+    # Botón Save and Continue
+    SAVE_AND_CONTINUE_BUTTON: str = "button#nextModButton"
+    SAVE_AND_CONTINUE_BUTTON_XPATH: str = "//button[@id='nextModButton']//span[contains(text(), 'Save and Continue')]"
+    
+    # Mapa de progreso (Wizard Steps)
+    WIZARD_STEPS: str = "ul.t-WizardSteps"
+    WIZARD_STEP: str = "li.t-WizardSteps-step"
+    WIZARD_STEP_COMPLETE: str = "li.t-WizardSteps-step.is-complete"
+    WIZARD_STEP_ACTIVE: str = "li.t-WizardSteps-step.is-active-module"
+    WIZARD_STEP_LABEL: str = "span.t-WizardSteps-label"
+    
+    # Botón Save Progress (en quiz)
+    SAVE_PROGRESS_BUTTON: str = "button[id^='B'][data-otel-label='SAVE']"
+    SAVE_PROGRESS_BUTTON_XPATH: str = "//button[@data-otel-label='SAVE']//span[contains(text(), 'Save Progress')]"
+    
+    # Botón Take an Assessment
+    TAKE_ASSESSMENT_BUTTON: str = "a#open_assess_id"
+    TAKE_ASSESSMENT_BUTTON_XPATH: str = "//a[@id='open_assess_id']//span[contains(text(), 'Take an Assessment')]"
 

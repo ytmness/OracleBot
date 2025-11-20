@@ -588,24 +588,100 @@ class ClassHandler:
             True si se seleccionó correctamente, False en caso contrario
         """
         try:
-            print(f"\nSeleccionando sección: {section_info.title}")
+            print(f"\nSeleccionando sección {section_info.index}: {section_info.title}")
             
-            # Scroll al elemento
-            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", section_info.element)
-            time.sleep(0.5)
+            # Esperar un momento para que la página se estabilice
+            time.sleep(1)
             
-            # Hacer clic
-            section_info.element.click()
-            
-            # Esperar a que cargue la página de la sección
-            print("Esperando a que cargue la página de la sección...")
-            time.sleep(3)
-            
-            print("✓ Sección seleccionada correctamente")
-            return True
+            # Buscar la sección nuevamente por su título para evitar elementos stale
+            # Esto es importante porque después de navegar, los elementos pueden volverse obsoletos
+            try:
+                # Buscar todas las secciones disponibles
+                section_items = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.SECTION_ITEM)
+                
+                if not section_items:
+                    print("⚠ No se encontraron elementos de sección en la página")
+                    return False
+                
+                # Buscar la sección correcta por su título
+                target_section = None
+                for item in section_items:
+                    try:
+                        title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
+                        item_title = title_elem.text.strip()
+                        
+                        # Comparar títulos (exacto o parcial)
+                        if item_title == section_info.title or section_info.title in item_title:
+                            target_section = item
+                            print(f"  ✓ Sección encontrada: {item_title}")
+                            break
+                    except:
+                        continue
+                
+                if not target_section:
+                    print(f"  ✗ No se pudo encontrar la sección '{section_info.title}' en la página")
+                    print(f"  Secciones disponibles en la página:")
+                    for i, item in enumerate(section_items[:5], 1):  # Mostrar primeras 5
+                        try:
+                            title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
+                            print(f"    {i}. {title_elem.text.strip()}")
+                        except:
+                            pass
+                    return False
+                
+                # Scroll al elemento encontrado
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", target_section)
+                time.sleep(0.5)
+                
+                # Hacer clic en el elemento encontrado
+                target_section.click()
+                
+                # Esperar a que cargue la página de la sección
+                print("Esperando a que cargue la página de la sección...")
+                time.sleep(3)
+                
+                # Verificar que cambió la URL o que cargó el contenido
+                new_url = self.driver.current_url
+                print(f"  URL después de seleccionar: {new_url}")
+                
+                print("✓ Sección seleccionada correctamente")
+                return True
+                
+            except Exception as e:
+                print(f"  ⚠ Error al buscar sección por título: {str(e)}")
+                # Intentar método alternativo: usar el índice
+                try:
+                    section_items = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.SECTION_ITEM)
+                    if section_info.index <= len(section_items):
+                        # Filtrar secciones inválidas para obtener el índice correcto
+                        invalid_sections = ["sections in course", "level of difficulty", "status", "course resources"]
+                        valid_sections = []
+                        for item in section_items:
+                            try:
+                                title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
+                                title = title_elem.text.strip().lower()
+                                if not any(invalid in title for invalid in invalid_sections):
+                                    valid_sections.append(item)
+                            except:
+                                continue
+                        
+                        if section_info.index <= len(valid_sections):
+                            target_section = valid_sections[section_info.index - 1]
+                            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", target_section)
+                            time.sleep(0.5)
+                            target_section.click()
+                            time.sleep(3)
+                            print("✓ Sección seleccionada por índice")
+                            return True
+                except:
+                    pass
+                
+                return False
             
         except Exception as e:
             print(f"✗ Error al seleccionar la sección: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def complete_section(self, max_quizzes: int = 1) -> bool:

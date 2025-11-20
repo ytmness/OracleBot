@@ -295,8 +295,18 @@ def main():
         if success:
             print("\n✓ Login exitoso")
             
+            # Esperar un momento para que la página se estabilice
+            time.sleep(2)
+            
             # Crear manejador de clases
             class_handler = ClassHandler(driver)
+            
+            # Navegar a la página de clases inmediatamente después del login
+            print("\nNavegando a la página de clases después del login...")
+            if class_handler.navigate_to_classes():
+                print("✓ Navegación a clases completada")
+            else:
+                print("⚠ No se pudo navegar a clases, pero continuando...")
             
             # Menú interactivo para seleccionar clases y secciones
             run_class_menu(driver, class_handler)

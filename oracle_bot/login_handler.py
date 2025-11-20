@@ -927,13 +927,32 @@ class LoginHandler:
         """
         try:
             print("Verificando si el login fue exitoso...")
-            my_classes = self.wait.until(
-                EC.presence_of_element_located((By.XPATH, self.selectors.MY_CLASSES_TITLE_XPATH))
-            )
-            print("✓ Login exitoso - Se encontró 'My Classes'")
-            return True
-        except TimeoutException:
-            print("⚠ Advertencia: No se pudo verificar el login (puede que aún esté cargando)")
+            
+            # Esperar un poco para que la página cargue completamente
+            time.sleep(3)
+            
+            # Verificar si estamos en la página correcta
+            current_url = self.driver.current_url
+            print(f"URL después del login: {current_url}")
+            
+            # Buscar el título "My Classes" o cualquier indicador de éxito
+            try:
+                my_classes = self.wait.until(
+                    EC.presence_of_element_located((By.XPATH, self.selectors.MY_CLASSES_TITLE_XPATH))
+                )
+                print("✓ Login exitoso - Se encontró 'My Classes'")
+                return True
+            except TimeoutException:
+                # Si no encuentra "My Classes", verificar si hay algún elemento que indique éxito
+                # o si la URL cambió correctamente
+                if '63000' in current_url or 'academy.oracle.com' in current_url:
+                    print("✓ Login exitoso - URL indica que estamos en Oracle Academy")
+                    return True
+                else:
+                    print("⚠ Advertencia: No se pudo verificar el login completamente")
+                    return False
+        except Exception as e:
+            print(f"⚠ Error al verificar login: {str(e)}")
             return False
     
     def login(self, username: str, password: str) -> bool:

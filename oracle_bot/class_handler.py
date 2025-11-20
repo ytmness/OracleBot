@@ -60,30 +60,42 @@ class ClassHandler:
             True si se navegó correctamente, False en caso contrario
         """
         try:
-            print("\nNavegando a la página de clases...")
+            print("\n" + "="*60)
+            print("NAVEGANDO A LA PÁGINA DE CLASES")
+            print("="*60)
             
             # Verificar si ya estamos en la página de clases
             current_url = self.driver.current_url
+            print(f"URL actual: {current_url}")
+            
             if self.selectors.CLASSES_PAGE_PATTERN in current_url:
-                print(f"✓ Ya estamos en la página de clases - URL: {current_url}")
+                print(f"✓ Ya estamos en la página de clases")
                 return True
             
             # Método 1: Intentar navegar directamente a la URL de clases
+            print("\n[Método 1] Navegación directa a URL de clases...")
             try:
-                print("Intentando navegar directamente a la URL de clases...")
+                print(f"Navegando a: {self.selectors.CLASSES_PAGE_URL}")
                 self.driver.get(self.selectors.CLASSES_PAGE_URL)
-                time.sleep(3)
+                time.sleep(5)  # Esperar más tiempo para que cargue
+                
+                new_url = self.driver.current_url
+                print(f"URL después de navegación: {new_url}")
                 
                 # Verificar que cargó correctamente
-                if self.selectors.CLASSES_PAGE_PATTERN in self.driver.current_url:
-                    print(f"✓ Navegación directa exitosa - URL: {self.driver.current_url}")
+                if self.selectors.CLASSES_PAGE_PATTERN in new_url:
+                    print(f"✓ Navegación directa exitosa")
                     return True
+                else:
+                    print(f"⚠ URL no coincide con el patrón esperado")
             except Exception as e:
-                print(f"⚠ Error en navegación directa: {str(e)}")
+                print(f"✗ Error en navegación directa: {str(e)}")
+                import traceback
+                traceback.print_exc()
             
             # Método 2: Buscar y hacer clic en la tarjeta de "View course materials assigned by a faculty member"
+            print("\n[Método 2] Buscando tarjeta de materiales del curso...")
             try:
-                print("Buscando tarjeta de materiales del curso...")
                 # Intentar encontrar el div con el texto específico
                 course_materials_card = self.wait.until(
                     EC.element_to_be_clickable((By.XPATH, self.selectors.COURSE_MATERIALS_CARD_XPATH))

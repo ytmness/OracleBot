@@ -1070,7 +1070,7 @@ class ClassHandler:
             print(f"  ✗ Error al seleccionar múltiples respuestas: {str(e)}")
             return False
     
-    def get_answer_from_openai(self, question_data: Dict) -> Optional[int]:
+    def get_answer_from_openai(self, question_data: Dict) -> List[int]:
         """
         Obtiene la respuesta correcta usando OpenAI
         
@@ -1078,17 +1078,29 @@ class ClassHandler:
             question_data: Diccionario con 'question' y 'choices'
             
         Returns:
-            Índice de la respuesta correcta (1-based) o None si hay error
+            Lista de índices de respuestas correctas (1-based). Si solo permite una, retorna lista con un elemento.
         """
         if not self.openai_client:
             print("  ⚠ OpenAI no está configurado, seleccionando primera opción")
-            return 1
+            return [1]
         
         try:
             # Construir el prompt
+            allows_multiple = question_data.get('allows_multiple', False)
             choices_text = "\n".join([f"{i}. {choice['text']}" for i, choice in enumerate(question_data['choices'], 1)])
             
-            prompt = f"""Eres un experto en programación Java. Responde la siguiente pregunta de quiz de manera precisa y concisa.
+            if allows_multiple:
+                prompt = f"""Eres un experto en programación Java. Responde la siguiente pregunta de quiz de manera precisa y concisa.
+
+Pregunta:
+{question_data['question']}
+
+Opciones:
+{choices_text}
+
+Esta pregunta permite MÚLTIPLES respuestas correctas. Responde con los números de TODAS las opciones correctas separadas por comas (ej: 1, 3, 5). Si solo hay una correcta, responde solo ese número. No incluyas explicaciones ni texto adicional."""
+            else:
+                prompt = f"""Eres un experto en programación Java. Responde la siguiente pregunta de quiz de manera precisa y concisa.
 
 Pregunta:
 {question_data['question']}
@@ -1105,27 +1117,39 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,
-                max_tokens=10
+                max_tokens=20 if allows_multiple else 10
             )
             
             answer_text = response.choices[0].message.content.strip()
             
-            # Extraer el número de la respuesta
+            # Extraer los números de las respuestas
             try:
-                answer_num = int(answer_text.split()[0])
-                if 1 <= answer_num <= len(question_data['choices']):
-                    print(f"  ✓ OpenAI sugiere opción {answer_num}")
-                    return answer_num
+                # Intentar parsear múltiples números separados por comas
+                if ',' in answer_text:
+                    answer_nums = [int(x.strip()) for x in answer_text.split(',')]
                 else:
-                    print(f"  ⚠ Número de opción fuera de rango: {answer_num}")
-                    return 1
+                    # Solo un número
+                    answer_nums = [int(answer_text.split()[0])]
+                
+                # Validar que todos los números estén en rango
+                valid_answers = [num for num in answer_nums if 1 <= num <= len(question_data['choices'])]
+                
+                if valid_answers:
+                    if allows_multiple:
+                        print(f"  ✓ OpenAI sugiere opciones: {', '.join(map(str, valid_answers))}")
+                    else:
+                        print(f"  ✓ OpenAI sugiere opción {valid_answers[0]}")
+                    return valid_answers
+                else:
+                    print(f"  ⚠ Números de opción fuera de rango: {answer_nums}")
+                    return [1]
             except:
                 print(f"  ⚠ No se pudo parsear la respuesta de OpenAI: {answer_text}")
-                return 1
+                return [1]
                 
         except Exception as e:
             print(f"  ✗ Error al consultar OpenAI: {str(e)}")
-            return 1
+            return [1]
     
     def go_to_next_question(self) -> bool:
         """

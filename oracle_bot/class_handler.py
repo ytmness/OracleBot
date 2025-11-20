@@ -803,18 +803,16 @@ class ClassHandler:
                 take_assessment_button.click()
                 time.sleep(3)
                 
-                # Guardar progreso del quiz
-                try:
-                    save_progress_button = assessment_wait.until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.SAVE_PROGRESS_BUTTON))
-                    )
-                    print("  Guardando progreso del quiz...")
-                    save_progress_button.click()
-                    time.sleep(1)
-                    quizzes_completed += 1
-                    print(f"  ✓ Quiz {quizzes_completed} completado")
-                except:
-                    print("  ⚠ No se encontró botón 'Save Progress', pero el quiz puede haberse iniciado")
+                # Iniciar el quiz
+                if self.start_quiz():
+                    # Completar el quiz usando OpenAI
+                    if self.complete_quiz_with_ai():
+                        quizzes_completed += 1
+                        print(f"  ✓ Quiz {quizzes_completed} completado")
+                    else:
+                        print("  ⚠ El quiz no se pudo completar completamente")
+                else:
+                    print("  ⚠ No se pudo iniciar el quiz")
                 
             except Exception as e:
                 print(f"  ⚠ No se encontró botón 'Take an Assessment': {str(e)}")

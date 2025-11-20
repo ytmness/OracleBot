@@ -51,6 +51,79 @@ class ClassHandler:
         self.wait = WebDriverWait(driver, 20)
         self.selectors = Selectors()
     
+    def navigate_to_classes(self) -> bool:
+        """
+        Navega a la página de clases haciendo clic en la tarjeta de materiales del curso
+        
+        Returns:
+            True si se navegó correctamente, False en caso contrario
+        """
+        try:
+            print("\nNavegando a la página de clases...")
+            
+            # Buscar la tarjeta de "View course materials assigned by a faculty member"
+            try:
+                # Intentar encontrar el div con el texto específico
+                course_materials_card = self.wait.until(
+                    EC.element_to_be_clickable((By.XPATH, self.selectors.COURSE_MATERIALS_CARD_XPATH))
+                )
+                
+                # Buscar el contenedor padre (t-Card-body) para hacer clic
+                card_body = course_materials_card.find_element(By.XPATH, "./ancestor::div[@class='t-Card-body']")
+                
+                print("✓ Tarjeta de materiales del curso encontrada")
+                
+                # Scroll al elemento
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", card_body)
+                time.sleep(0.5)
+                
+                # Hacer clic en la tarjeta
+                card_body.click()
+                
+                # Esperar a que cargue la página de clases
+                print("Esperando a que cargue la página de clases...")
+                time.sleep(3)
+                
+                # Verificar que estamos en la página de clases
+                try:
+                    self.wait.until(
+                        EC.presence_of_element_located((By.XPATH, self.selectors.MY_CLASSES_TITLE_XPATH))
+                    )
+                    print("✓ Página de clases cargada correctamente")
+                    return True
+                except:
+                    print("⚠ No se pudo verificar la carga de la página de clases, pero continuando...")
+                    return True
+                    
+            except TimeoutException:
+                # Si no se encuentra, intentar buscar cualquier div.t-Card-body clickeable
+                try:
+                    print("Buscando tarjeta alternativa...")
+                    card_bodies = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.COURSE_MATERIALS_CARD)
+                    
+                    for card in card_bodies:
+                        try:
+                            desc = card.find_element(By.CSS_SELECTOR, "div.t-Card-desc")
+                            if "course materials" in desc.text.lower() or "faculty member" in desc.text.lower():
+                                print("✓ Tarjeta encontrada por texto alternativo")
+                                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", card)
+                                time.sleep(0.5)
+                                card.click()
+                                time.sleep(3)
+                                return True
+                        except:
+                            continue
+                    
+                    print("⚠ No se encontró la tarjeta de materiales del curso")
+                    return False
+                except:
+                    print("⚠ Error al buscar tarjeta alternativa")
+                    return False
+                    
+        except Exception as e:
+            print(f"✗ Error al navegar a clases: {str(e)}")
+            return False
+    
     def verify_classes_page_loaded(self) -> bool:
         """
         Verifica que la página de clases esté cargada
@@ -79,6 +152,13 @@ class ClassHandler:
         
         try:
             print("\nBuscando clases disponibles...")
+            
+            # Primero navegar a la página de clases si no estamos ahí
+            if not self.verify_classes_page_loaded():
+                print("No estamos en la página de clases, navegando...")
+                if not self.navigate_to_classes():
+                    print("⚠ No se pudo navegar a la página de clases")
+                    return []
             
             # Verificar que la página esté cargada
             self.verify_classes_page_loaded()

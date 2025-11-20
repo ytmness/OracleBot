@@ -51,6 +51,11 @@ class Selectors:
     MY_CLASSES_TITLE: str = "h3.t-Card-title"
     MY_CLASSES_TITLE_XPATH: str = "//h3[@class='t-Card-title' and contains(text(), 'My Classes')]"
     
+    # Card para acceder a las clases (después del login)
+    COURSE_MATERIALS_CARD: str = "div.t-Card-body"
+    COURSE_MATERIALS_CARD_XPATH: str = "//div[@class='t-Card-body']//div[contains(text(), 'View course materials assigned by a faculty member')]"
+    COURSE_MATERIALS_CARD_CONTAINER: str = "div.t-Card-body:has(div.t-Card-desc:contains('View course materials'))"
+    
     # Card View - Lista de clases
     CARD_VIEW_ITEMS: str = "ul.a-CardView-items.a-CardView-items--grid3col"
     CARD_VIEW_ITEMS_XPATH: str = "//ul[@class='a-CardView-items a-CardView-items--grid3col']"

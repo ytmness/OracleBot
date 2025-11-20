@@ -170,9 +170,28 @@ class ClassHandler:
             
             print(f"Encontradas {len(class_items)} clases")
             
+            # Debugging: mostrar estructura HTML del primer item
+            if class_items:
+                try:
+                    first_item_html = class_items[0].get_attribute('outerHTML')
+                    print(f"\n[DEBUG] Estructura HTML del primer item (primeros 500 caracteres):")
+                    print(first_item_html[:500])
+                    print("...")
+                except:
+                    pass
+            
             for index, item in enumerate(class_items, start=1):
                 try:
                     print(f"\n  Procesando clase {index}...")
+                    
+                    # Debugging: mostrar todos los elementos dentro del item
+                    try:
+                        all_h3 = item.find_elements(By.CSS_SELECTOR, "h3")
+                        print(f"    [DEBUG] Encontrados {len(all_h3)} elementos h3:")
+                        for i, h3 in enumerate(all_h3):
+                            print(f"      h3[{i}]: clase='{h3.get_attribute('class')}', texto='{h3.text[:50]}'")
+                    except:
+                        pass
                     
                     # Obtener título - intentar múltiples métodos
                     title = ""

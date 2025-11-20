@@ -93,8 +93,8 @@ class ClassHandler:
                 import traceback
                 traceback.print_exc()
             
-            # Método 2: Buscar y hacer clic en la tarjeta de "View course materials assigned by a faculty member"
-            print("\n[Método 2] Buscando tarjeta de materiales del curso...")
+            # Método 4: Buscar y hacer clic en la tarjeta de "View course materials assigned by a faculty member"
+            print("\n[Método 4] Buscando tarjeta de materiales del curso...")
             try:
                 # Intentar encontrar el div con el texto específico
                 course_materials_card = self.wait.until(

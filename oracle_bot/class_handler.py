@@ -1285,13 +1285,30 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                     status = "✓" if choice['is_selected'] else "○"
                     print(f"    {status} {i}. {choice['text'][:80]}...")
                 
-                # Obtener respuesta de OpenAI
-                answer_index = self.get_answer_from_openai(question_data)
+                # Obtener respuesta(s) de OpenAI
+                answer_indices = self.get_answer_from_openai(question_data)
                 
-                # Seleccionar la respuesta
-                if self.select_answer(answer_index):
-                    questions_answered += 1
-                    print(f"  ✓ Pregunta {questions_answered} respondida")
+                # Seleccionar la(s) respuesta(s)
+                if question_data.get('allows_multiple', False):
+                    # Seleccionar múltiples respuestas
+                    if self.select_multiple_answers(answer_indices):
+                        questions_answered += 1
+                        print(f"  ✓ Pregunta {questions_answered} respondida (múltiples opciones)")
+                    else:
+                        print("  ⚠ No se pudieron seleccionar las respuestas múltiples")
+                        continue
+                else:
+                    # Seleccionar una sola respuesta
+                    if len(answer_indices) > 0:
+                        if self.select_answer(answer_indices[0], allow_multiple=False):
+                            questions_answered += 1
+                            print(f"  ✓ Pregunta {questions_answered} respondida")
+                        else:
+                            print("  ⚠ No se pudo seleccionar la respuesta")
+                            continue
+                    else:
+                        print("  ⚠ No se obtuvo respuesta de OpenAI")
+                        continue
                     
                     # Esperar un momento antes de avanzar
                     time.sleep(1)

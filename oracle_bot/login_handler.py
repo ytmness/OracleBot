@@ -394,6 +394,43 @@ class LoginHandler:
             # Remover overlays que puedan estar bloqueando
             self.remove_overlays()
             
+            # --- INTENTO 0: usar directamente el elemento activo (ya tiene autofocus) ---
+            try:
+                from selenium.webdriver.common.keys import Keys
+                import time
+                
+                active = self.driver.switch_to.active_element
+                active_tag = active.tag_name if active else "None"
+                active_id = active.get_attribute('id') if active else "None"
+                print(f"\n[Intento 0] Elemento activo: tag={active_tag}, id={active_id}")
+                
+                # Verificar que sea un input
+                if active and active.tag_name.lower() == 'input':
+                    # Limpiar por si tiene algo
+                    active.send_keys(Keys.CONTROL + "a")
+                    time.sleep(0.1)
+                    active.send_keys(Keys.DELETE)
+                    time.sleep(0.2)
+                    
+                    # Escribir el username directamente
+                    print(f"Escribiendo '{username}' directamente en el elemento activo...")
+                    active.send_keys(username)
+                    time.sleep(0.5)
+                    
+                    written = active.get_attribute("value")
+                    print(f"Valor escrito vía active_element: '{written}'")
+                    
+                    if written == username:
+                        print("✓ Escritura exitosa usando el elemento activo (sin selectores extra)")
+                        return
+                    else:
+                        print(f"⚠ El elemento activo no aceptó correctamente el texto (esperado: '{username}', obtenido: '{written}'), sigo con el método largo...")
+                else:
+                    print(f"⚠ El elemento activo no es un input (es {active_tag}), sigo con el método largo...")
+            except Exception as e:
+                print(f"⚠ No se pudo escribir usando el elemento activo: {e}")
+                # Si falla, seguimos con el flujo normal (selectores, etc.)
+            
             # Verificar si hay iframes y cambiar si es necesario
             self.in_iframe = self.switch_to_iframe_if_needed()
             
@@ -401,6 +438,7 @@ class LoginHandler:
             selectors_to_try = [
                 ("CSS por ID", By.CSS_SELECTOR, self.selectors.FILL_USER),
                 ("XPath por ID", By.XPATH, self.selectors.FILL_USER_XPATH),
+                ("CSS por data-bind", By.CSS_SELECTOR, self.selectors.FILL_USER_DATABIND),
                 ("XPath con atributos", By.XPATH, self.selectors.FILL_USER_XPATH_ALT),
                 ("CSS por autocomplete", By.CSS_SELECTOR, self.selectors.FILL_USER_BY_AUTOCOMPLETE),
                 ("XPath usando label 'for'", By.XPATH, self.selectors.USER_BY_LABEL_FOR),
@@ -424,17 +462,28 @@ class LoginHandler:
                     continue
             
             if not username_field:
-                # Último intento: buscar cualquier input de tipo text
-                print("Intentando búsqueda genérica de input...")
+                # Último intento: buscar cualquier input (más flexible, no solo type="text")
+                print("Intentando búsqueda genérica de input (mejorada)...")
                 try:
-                    inputs = self.driver.find_elements(By.CSS_SELECTOR, "input[type='text']")
-                    print(f"Encontrados {len(inputs)} inputs de tipo text")
+                    inputs = self.driver.find_elements(By.CSS_SELECTOR, "input")
+                    print(f"Encontrados {len(inputs)} inputs en la página")
                     for inp in inputs:
-                        print(f"  - ID: {inp.get_attribute('id')}, Placeholder: {inp.get_attribute('placeholder')}")
-                        if 'username' in inp.get_attribute('id').lower() or 'user' in inp.get_attribute('id').lower():
+                        input_type = (inp.get_attribute('type') or '').lower()
+                        input_id = (inp.get_attribute('id') or '').lower()
+                        placeholder = (inp.get_attribute('placeholder') or '').lower()
+                        autocomplete = (inp.get_attribute('autocomplete') or '').lower()
+                        print(f"  - ID: {input_id}, type: {input_type}, placeholder: {placeholder}, autocomplete: {autocomplete}")
+                        if (
+                            'username' in input_id
+                            or 'user' in input_id
+                            or 'correo' in placeholder
+                            or 'email' in placeholder
+                            or 'username' in autocomplete
+                            or (input_type in ['text', 'email'] and ('username' in input_id or 'user' in input_id))
+                        ):
                             username_field = inp
-                            selector_used = "Búsqueda genérica"
-                            print(f"✓ Campo encontrado por búsqueda genérica")
+                            selector_used = "Búsqueda genérica mejorada"
+                            print(f"✓ Campo encontrado por búsqueda genérica mejorada")
                             break
                 except Exception as e:
                     print(f"Error en búsqueda genérica: {str(e)}")

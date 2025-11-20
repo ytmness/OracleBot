@@ -27,6 +27,8 @@ class Selectors:
     # Selectores alternativos por atributos
     FILL_USER_XPATH_ALT: str = "//input[@id='idcs-signin-basic-signin-form-username' and @type='text' and @autocomplete='username']"
     FILL_USER_BY_AUTOCOMPLETE: str = "input[autocomplete='username'][type='text']"
+    # Selector alternativo por data-bind (más robusto si cambia el ID)
+    FILL_USER_DATABIND: str = "input[data-bind*='value: username']"
     # Label del campo de usuario (para verificación)
     USER_LABEL: str = "oj-label[for='idcs-signin-basic-signin-form-username']"
     USER_LABEL_XPATH: str = "//oj-label[@for='idcs-signin-basic-signin-form-username']"

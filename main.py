@@ -312,8 +312,15 @@ def main():
             # Esperar un momento para que la página se estabilice
             time.sleep(2)
             
+            # Obtener API key de OpenAI si está disponible
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            if not openai_api_key:
+                print("\n⚠ OPENAI_API_KEY no encontrada en variables de entorno")
+                print("  Puedes configurarla con: set OPENAI_API_KEY=tu_clave")
+                print("  O el bot usará respuestas aleatorias")
+            
             # Crear manejador de clases
-            class_handler = ClassHandler(driver)
+            class_handler = ClassHandler(driver, openai_api_key=openai_api_key)
             
             # Navegar a la página de clases inmediatamente después del login
             print("\nNavegando a la página de clases después del login...")

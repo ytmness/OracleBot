@@ -2,6 +2,7 @@
 Manejador de clases para Oracle Academy
 """
 import time
+import os
 from typing import List, Dict, Optional
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -9,6 +10,14 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from config.selectors import Selectors
+
+# OpenAI (opcional, solo si está configurado)
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("⚠ OpenAI no está instalado. Ejecuta: pip install openai")
 
 
 class ClassInfo:
@@ -40,16 +49,30 @@ class SectionInfo:
 class ClassHandler:
     """Clase para manejar clases y secciones en Oracle Academy"""
     
-    def __init__(self, driver: webdriver.Chrome):
+    def __init__(self, driver: webdriver.Chrome, openai_api_key: Optional[str] = None):
         """
         Inicializa el manejador de clases
         
         Args:
             driver: Instancia del WebDriver de Selenium
+            openai_api_key: Clave API de OpenAI (opcional)
         """
         self.driver = driver
         self.wait = WebDriverWait(driver, 20)
         self.selectors = Selectors()
+        
+        # Configurar OpenAI si está disponible
+        self.openai_client = None
+        if OPENAI_AVAILABLE and openai_api_key:
+            try:
+                self.openai_client = OpenAI(api_key=openai_api_key)
+                print("✓ OpenAI configurado correctamente")
+            except Exception as e:
+                print(f"⚠ Error al configurar OpenAI: {str(e)}")
+        elif openai_api_key and not OPENAI_AVAILABLE:
+            print("⚠ OpenAI no está instalado. Instala con: pip install openai")
+        elif not openai_api_key:
+            print("⚠ OpenAI API key no proporcionada. Las respuestas serán aleatorias.")
     
     def navigate_to_classes(self) -> bool:
         """
@@ -853,6 +876,276 @@ class ClassHandler:
                 self.driver.execute_script("window.history.go(-2);")  # Retroceder 2 páginas
                 time.sleep(3)
                 return True
+             except:
+                 return False
+    
+    def start_quiz(self) -> bool:
+        """
+        Inicia el quiz haciendo clic en el botón "Start"
+        
+        Returns:
+            True si se inició correctamente, False en caso contrario
+        """
+        try:
+            print("\n  Iniciando quiz...")
+            
+            # Buscar el botón Start
+            try:
+                start_button = self.wait.until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.START_QUIZ_BUTTON))
+                )
+                print("  ✓ Botón 'Start' encontrado")
             except:
+                # Intentar por XPath
+                try:
+                    start_button = self.driver.find_element(By.XPATH, self.selectors.START_QUIZ_BUTTON_XPATH)
+                    print("  ✓ Botón 'Start' encontrado (por XPath)")
+                except:
+                    print("  ✗ No se encontró el botón 'Start'")
+                    return False
+            
+            # Hacer clic en Start
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", start_button)
+            time.sleep(0.5)
+            start_button.click()
+            time.sleep(3)  # Esperar a que cargue la primera pregunta
+            
+            print("  ✓ Quiz iniciado")
+            return True
+            
+        except Exception as e:
+            print(f"  ✗ Error al iniciar el quiz: {str(e)}")
+            return False
+    
+    def get_question_and_choices(self) -> Optional[Dict]:
+        """
+        Extrae la pregunta y las opciones de respuesta del quiz actual
+        
+        Returns:
+            Diccionario con 'question' y 'choices', o None si hay error
+        """
+        try:
+            # Extraer la pregunta
+            question_text = ""
+            try:
+                question_elem = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_CONTENT)
+                question_text = question_elem.text.strip()
+            except:
+                try:
+                    question_elem = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_TEXT)
+                    question_text = question_elem.text.strip()
+                except:
+                    print("  ⚠ No se pudo extraer la pregunta")
+                    return None
+            
+            # Extraer número de pregunta
+            question_number = ""
+            try:
+                heading_elem = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_HEADING)
+                question_number = heading_elem.text.strip()
+            except:
+                pass
+            
+            # Extraer todas las opciones
+            choices = []
+            try:
+                choice_buttons = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.CHOICE_BUTTON)
+                
+                for i, button in enumerate(choice_buttons, 1):
+                    try:
+                        # Obtener el texto de la opción
+                        choice_text_elem = button.find_element(By.CSS_SELECTOR, self.selectors.CHOICE_TEXT)
+                        choice_text = choice_text_elem.text.strip()
+                        
+                        # Verificar si está seleccionada
+                        is_selected = button.get_attribute("aria-checked") == "true"
+                        
+                        choices.append({
+                            "index": i,
+                            "text": choice_text,
+                            "is_selected": is_selected,
+                            "element": button
+                        })
+                    except:
+                        continue
+                
+            except Exception as e:
+                print(f"  ⚠ Error al extraer opciones: {str(e)}")
+                return None
+            
+            return {
+                "question_number": question_number,
+                "question": question_text,
+                "choices": choices
+            }
+            
+        except Exception as e:
+            print(f"  ✗ Error al extraer pregunta y opciones: {str(e)}")
+            return None
+    
+    def select_answer(self, choice_index: int) -> bool:
+        """
+        Selecciona una respuesta haciendo clic en el botón de opción
+        
+        Args:
+            choice_index: Índice de la opción a seleccionar (1-based)
+            
+        Returns:
+            True si se seleccionó correctamente, False en caso contrario
+        """
+        try:
+            choice_buttons = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.CHOICE_BUTTON)
+            
+            if choice_index < 1 or choice_index > len(choice_buttons):
+                print(f"  ⚠ Índice de opción inválido: {choice_index}")
                 return False
+            
+            target_button = choice_buttons[choice_index - 1]
+            
+            # Hacer clic en la opción
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", target_button)
+            time.sleep(0.3)
+            target_button.click()
+            time.sleep(1)
+            
+            print(f"  ✓ Opción {choice_index} seleccionada")
+            return True
+            
+        except Exception as e:
+            print(f"  ✗ Error al seleccionar respuesta: {str(e)}")
+            return False
+    
+    def get_answer_from_openai(self, question_data: Dict) -> Optional[int]:
+        """
+        Obtiene la respuesta correcta usando OpenAI
+        
+        Args:
+            question_data: Diccionario con 'question' y 'choices'
+            
+        Returns:
+            Índice de la respuesta correcta (1-based) o None si hay error
+        """
+        if not self.openai_client:
+            print("  ⚠ OpenAI no está configurado, seleccionando primera opción")
+            return 1
+        
+        try:
+            # Construir el prompt
+            choices_text = "\n".join([f"{i}. {choice['text']}" for i, choice in enumerate(question_data['choices'], 1)])
+            
+            prompt = f"""Eres un experto en programación Java. Responde la siguiente pregunta de quiz de manera precisa y concisa.
+
+Pregunta:
+{question_data['question']}
+
+Opciones:
+{choices_text}
+
+Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas explicaciones ni texto adicional."""
+            
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",  # Puedes cambiar a gpt-4 si tienes acceso
+                messages=[
+                    {"role": "system", "content": "Eres un experto en programación Java que responde preguntas de quiz de manera precisa."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=10
+            )
+            
+            answer_text = response.choices[0].message.content.strip()
+            
+            # Extraer el número de la respuesta
+            try:
+                answer_num = int(answer_text.split()[0])
+                if 1 <= answer_num <= len(question_data['choices']):
+                    print(f"  ✓ OpenAI sugiere opción {answer_num}")
+                    return answer_num
+                else:
+                    print(f"  ⚠ Número de opción fuera de rango: {answer_num}")
+                    return 1
+            except:
+                print(f"  ⚠ No se pudo parsear la respuesta de OpenAI: {answer_text}")
+                return 1
+                
+        except Exception as e:
+            print(f"  ✗ Error al consultar OpenAI: {str(e)}")
+            return 1
+    
+    def go_to_next_question(self) -> bool:
+        """
+        Avanza a la siguiente pregunta o envía el quiz
+        
+        Returns:
+            True si avanzó correctamente, False si el quiz terminó
+        """
+        try:
+            # Buscar botón Next o Submit
+            try:
+                next_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.NEXT_QUESTION_BUTTON)
+                print("  Avanzando a siguiente pregunta...")
+                next_button.click()
+                time.sleep(3)
+                return True
+            except:
+                try:
+                    submit_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.SUBMIT_QUIZ_BUTTON)
+                    print("  Enviando quiz...")
+                    submit_button.click()
+                    time.sleep(3)
+                    return False  # Quiz terminado
+                except:
+                    print("  ⚠ No se encontró botón Next/Submit")
+                    return False
+        except Exception as e:
+            print(f"  ✗ Error al avanzar: {str(e)}")
+            return False
+    
+    def complete_quiz_with_ai(self) -> bool:
+        """
+        Completa el quiz completo usando OpenAI para responder las preguntas
+        
+        Returns:
+            True si se completó correctamente, False en caso contrario
+        """
+        try:
+            print("\n  Completando quiz con IA...")
+            max_questions = 50  # Límite de seguridad
+            questions_answered = 0
+            
+            while questions_answered < max_questions:
+                # Extraer pregunta y opciones
+                question_data = self.get_question_and_choices()
+                
+                if not question_data:
+                    print("  ⚠ No se pudo extraer la pregunta, puede que el quiz haya terminado")
+                    break
+                
+                print(f"\n  {question_data.get('question_number', 'Pregunta')}")
+                print(f"  Pregunta: {question_data['question'][:100]}...")
+                print(f"  Opciones encontradas: {len(question_data['choices'])}")
+                
+                # Obtener respuesta de OpenAI
+                answer_index = self.get_answer_from_openai(question_data)
+                
+                # Seleccionar la respuesta
+                if self.select_answer(answer_index):
+                    questions_answered += 1
+                    
+                    # Avanzar a la siguiente pregunta
+                    if not self.go_to_next_question():
+                        print("  ✓ Quiz completado")
+                        break
+                else:
+                    print("  ⚠ No se pudo seleccionar la respuesta")
+                    break
+            
+            print(f"  ✓ Total de preguntas respondidas: {questions_answered}")
+            return True
+            
+        except Exception as e:
+            print(f"  ✗ Error al completar el quiz: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
 

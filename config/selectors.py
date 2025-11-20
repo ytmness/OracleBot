@@ -104,4 +104,23 @@ class Selectors:
     # Botón Take an Assessment
     TAKE_ASSESSMENT_BUTTON: str = "a#open_assess_id"
     TAKE_ASSESSMENT_BUTTON_XPATH: str = "//a[@id='open_assess_id']//span[contains(text(), 'Take an Assessment')]"
+    
+    # Botón Start Quiz
+    START_QUIZ_BUTTON: str = "button[data-otel-label='START']"
+    START_QUIZ_BUTTON_XPATH: str = "//button[@data-otel-label='START']//span[contains(text(), 'Start')]"
+    
+    # Pregunta del quiz
+    QUESTION_TEXT: str = "div#question-Text"
+    QUESTION_HEADING: str = "h2#question-Text_heading"
+    QUESTION_CONTENT: str = "div#question-Text div.t-ContentBlock-body"
+    
+    # Opciones de respuesta
+    CHOICE_CONTAINER: str = "div.choice-Container"
+    CHOICE_BUTTON: str = "button.choice-SelectArea"
+    CHOICE_TEXT: str = "span.choice-Text"
+    CHOICE_SELECTED: str = "button.choice-SelectArea[aria-checked='true']"
+    
+    # Botón Next/Submit (para avanzar después de responder)
+    NEXT_QUESTION_BUTTON: str = "button[data-otel-label='NEXT']"
+    SUBMIT_QUIZ_BUTTON: str = "button[data-otel-label='SUBMIT']"
 

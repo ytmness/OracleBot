@@ -874,8 +874,8 @@ class ClassHandler:
                 self.driver.execute_script("window.history.go(-2);")  # Retroceder 2 páginas
                 time.sleep(3)
                 return True
-             except:
-                 return False
+            except:
+                return False
     
     def start_quiz(self) -> bool:
         """

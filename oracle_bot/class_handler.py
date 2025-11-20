@@ -1156,20 +1156,64 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
         """
         try:
             print("\n  Completando quiz con IA...")
-            max_questions = 50  # Límite de seguridad
+            max_questions = 100  # Límite de seguridad aumentado
             questions_answered = 0
+            consecutive_errors = 0
+            max_consecutive_errors = 3
             
             while questions_answered < max_questions:
+                # Esperar un momento para que la página se estabilice
+                time.sleep(1)
+                
+                # Verificar si todavía estamos en una página de quiz
+                try:
+                    # Intentar encontrar el contenedor de pregunta
+                    question_container = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_TEXT)
+                    if not question_container.is_displayed():
+                        print("  ⚠ Contenedor de pregunta no visible, puede que el quiz haya terminado")
+                        break
+                except:
+                    # Si no encuentra el contenedor, verificar si hay mensaje de finalización
+                    try:
+                        # Buscar indicadores de que el quiz terminó
+                        page_text = self.driver.page_source.lower()
+                        if "quiz complete" in page_text or "assessment complete" in page_text or "results" in page_text:
+                            print("  ✓ Quiz completado (indicador encontrado)")
+                            break
+                    except:
+                        pass
+                    
+                    print("  ⚠ No se encontró contenedor de pregunta, puede que el quiz haya terminado")
+                    break
+                
                 # Extraer pregunta y opciones
                 question_data = self.get_question_and_choices()
                 
                 if not question_data:
-                    print("  ⚠ No se pudo extraer la pregunta, puede que el quiz haya terminado")
-                    break
+                    consecutive_errors += 1
+                    print(f"  ⚠ No se pudo extraer la pregunta (intento {consecutive_errors}/{max_consecutive_errors})")
+                    
+                    if consecutive_errors >= max_consecutive_errors:
+                        print("  ⚠ Demasiados errores consecutivos, puede que el quiz haya terminado")
+                        break
+                    
+                    # Esperar un poco más y reintentar
+                    time.sleep(2)
+                    continue
                 
-                print(f"\n  {question_data.get('question_number', 'Pregunta')}")
-                print(f"  Pregunta: {question_data['question'][:100]}...")
+                # Resetear contador de errores si se extrajo correctamente
+                consecutive_errors = 0
+                
+                print(f"\n  {'='*50}")
+                print(f"  {question_data.get('question_number', 'Pregunta')}")
+                print(f"  {'='*50}")
+                print(f"  Pregunta: {question_data['question'][:150]}...")
                 print(f"  Opciones encontradas: {len(question_data['choices'])}")
+                
+                # Mostrar opciones disponibles
+                for i, choice in enumerate(question_data['choices'], 1):
+                    status = "✓" if choice['is_selected'] else "○"
+                    print(f"    {status} {i}. {choice['text'][:80]}...")
                 
                 # Obtener respuesta de OpenAI
                 answer_index = self.get_answer_from_openai(question_data)
@@ -1177,18 +1221,34 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                 # Seleccionar la respuesta
                 if self.select_answer(answer_index):
                     questions_answered += 1
+                    print(f"  ✓ Pregunta {questions_answered} respondida")
+                    
+                    # Esperar un momento antes de avanzar
+                    time.sleep(1)
                     
                     # Avanzar a la siguiente pregunta
-                    if not self.go_to_next_question():
-                        print("  ✓ Quiz completado")
+                    has_more = self.go_to_next_question()
+                    
+                    if not has_more:
+                        print(f"\n  ✓ Quiz completado - Total de preguntas respondidas: {questions_answered}")
                         break
+                    
+                    # Esperar a que cargue la siguiente pregunta
+                    time.sleep(2)
                 else:
-                    print("  ⚠ No se pudo seleccionar la respuesta")
-                    break
+                    print("  ⚠ No se pudo seleccionar la respuesta, reintentando...")
+                    time.sleep(2)
+                    continue
             
-            print(f"  ✓ Total de preguntas respondidas: {questions_answered}")
-            return True
+            print(f"\n  {'='*50}")
+            print(f"  RESUMEN: {questions_answered} preguntas respondidas")
+            print(f"  {'='*50}")
             
+            return questions_answered > 0
+            
+        except KeyboardInterrupt:
+            print("\n  ⚠ Quiz interrumpido por el usuario")
+            return False
         except Exception as e:
             print(f"  ✗ Error al completar el quiz: {str(e)}")
             import traceback

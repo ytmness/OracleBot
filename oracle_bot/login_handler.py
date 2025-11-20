@@ -114,18 +114,38 @@ class LoginHandler:
             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", student_signin)
             time.sleep(0.3)
             
+            # Guardar la ventana actual antes de hacer clic
+            original_window = self.driver.current_window_handle
+            window_count_before = len(self.driver.window_handles)
+            
             student_signin.click()
             
-            # Esperar a que la nueva página cargue completamente
+            # Esperar a que se abra una nueva ventana o cambie la URL
             print("Esperando a que cargue la página de login...")
+            time.sleep(2)  # Esperar inicial para que se abra la ventana
             
-            # Esperar a que la URL cambie o aparezca algún elemento de la página de login
-            try:
-                self.wait.until(lambda driver: 'signin' in driver.current_url.lower() or 
-                              len(driver.find_elements(By.TAG_NAME, "input")) > 0)
-                print(f"✓ Página de login detectada - URL: {self.driver.current_url}")
-            except:
-                print(f"⚠ Timeout esperando cambio de URL, pero continuando... URL actual: {self.driver.current_url}")
+            # Verificar si se abrió una nueva ventana
+            window_count_after = len(self.driver.window_handles)
+            if window_count_after > window_count_before:
+                print(f"✓ Se abrió una nueva ventana ({window_count_after} ventanas)")
+                # Cambiar a la nueva ventana (la última es la nueva)
+                for window_handle in self.driver.window_handles:
+                    if window_handle != original_window:
+                        self.driver.switch_to.window(window_handle)
+                        print(f"✓ Cambiado a la nueva ventana - URL: {self.driver.current_url}")
+                        break
+            else:
+                # No se abrió nueva ventana, esperar cambio de URL
+                print("No se abrió nueva ventana, esperando cambio de URL...")
+                try:
+                    self.wait.until(lambda driver: 
+                                  'signin' in driver.current_url.lower() or 
+                                  'signon.oracle.com' in driver.current_url.lower() or
+                                  '63000' in driver.current_url or
+                                  len(driver.find_elements(By.TAG_NAME, "input")) > 0)
+                    print(f"✓ Página de login detectada - URL: {self.driver.current_url}")
+                except:
+                    print(f"⚠ Timeout esperando cambio de URL, pero continuando... URL actual: {self.driver.current_url}")
             
             # Esperar adicional para que se complete cualquier inicialización de JavaScript
             # y que el campo de usuario tenga autofocus

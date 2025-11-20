@@ -118,15 +118,36 @@ class LoginHandler:
             
             # Esperar a que la nueva página cargue completamente
             print("Esperando a que cargue la página de login...")
-            time.sleep(5)  # Aumentar tiempo de espera
             
             # Esperar a que la URL cambie o aparezca algún elemento de la página de login
-            # También esperar a que termine cualquier animación o carga de JavaScript
-            self.wait.until(lambda driver: 'signin' in driver.current_url.lower() or 
-                          len(driver.find_elements(By.TAG_NAME, "input")) > 0)
+            try:
+                self.wait.until(lambda driver: 'signin' in driver.current_url.lower() or 
+                              len(driver.find_elements(By.TAG_NAME, "input")) > 0)
+                print(f"✓ Página de login detectada - URL: {self.driver.current_url}")
+            except:
+                print(f"⚠ Timeout esperando cambio de URL, pero continuando... URL actual: {self.driver.current_url}")
             
             # Esperar adicional para que se complete cualquier inicialización de JavaScript
-            time.sleep(2)
+            # y que el campo de usuario tenga autofocus
+            print("Esperando a que el campo de usuario tenga autofocus...")
+            time.sleep(3)  # Dar tiempo para que el autofocus se active
+            
+            # Verificar que el campo de usuario esté presente y tenga autofocus
+            try:
+                username_field = self.wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, self.selectors.FILL_USER))
+                )
+                print("✓ Campo de usuario encontrado en la página")
+                
+                # Esperar a que tenga autofocus (verificar elemento activo)
+                for i in range(5):
+                    active = self.driver.switch_to.active_element
+                    if active and active.get_attribute('id') == 'idcs-signin-basic-signin-form-username':
+                        print("✓ Campo de usuario tiene autofocus activo")
+                        break
+                    time.sleep(0.5)
+            except:
+                print("⚠ No se pudo verificar el campo de usuario, pero continuando...")
             
             # Ejecutar script para suprimir warnings de consola
             self.suppress_console_warnings()
@@ -387,6 +408,19 @@ class LoginHandler:
             print(f"{'='*60}")
             print(f"URL actual: {self.driver.current_url}")
             
+            # Verificar que estamos en la página de login (no en la landing page)
+            if 'signin' not in self.driver.current_url.lower() and '63000' not in self.driver.current_url:
+                print("⚠ ERROR: No estamos en la página de login!")
+                print(f"   URL actual: {self.driver.current_url}")
+                print("   Esperando a que cargue la página de login...")
+                # Esperar a que la URL cambie
+                try:
+                    self.wait.until(lambda driver: 'signin' in driver.current_url.lower() or '63000' in driver.current_url)
+                    print(f"✓ Página de login cargada - URL: {self.driver.current_url}")
+                    time.sleep(2)  # Esperar adicional para que se complete la carga
+                except:
+                    print("⚠ Timeout esperando página de login, pero continuando...")
+            
             # Verificar que la página de login esté cargada
             if not self.verify_login_page_loaded():
                 print("⚠ Advertencia: No se pudo verificar que la página de login esté completamente cargada")
@@ -395,29 +429,45 @@ class LoginHandler:
             self.remove_overlays()
             
             # --- INTENTO 0: usar directamente el elemento activo (ya tiene autofocus) ---
+            # Esperar a que el campo de usuario esté enfocado (puede tardar un poco después de cargar)
             try:
                 from selenium.webdriver.common.keys import Keys
                 import time
                 
-                active = self.driver.switch_to.active_element
-                active_tag = active.tag_name if active else "None"
-                active_id = active.get_attribute('id') if active else "None"
-                print(f"\n[Intento 0] Elemento activo: tag={active_tag}, id={active_id}")
+                # Esperar hasta que el elemento activo sea el campo de usuario
+                print("\n[Intento 0] Esperando a que el campo de usuario tenga autofocus...")
+                max_attempts = 10
+                active_input = None
                 
-                # Verificar que sea un input
-                if active and active.tag_name.lower() == 'input':
+                for attempt in range(max_attempts):
+                    active = self.driver.switch_to.active_element
+                    active_tag = active.tag_name if active else "None"
+                    active_id = active.get_attribute('id') if active else "None"
+                    
+                    if active and active.tag_name.lower() == 'input' and 'username' in active_id.lower():
+                        active_input = active
+                        print(f"✓ Campo de usuario encontrado como elemento activo: tag={active_tag}, id={active_id}")
+                        break
+                    else:
+                        if attempt < max_attempts - 1:
+                            print(f"  Intento {attempt + 1}/{max_attempts}: Elemento activo es {active_tag} (id: {active_id}), esperando...")
+                            time.sleep(0.5)
+                        else:
+                            print(f"  ⚠ Después de {max_attempts} intentos, el elemento activo sigue siendo {active_tag} (id: {active_id})")
+                
+                if active_input:
                     # Limpiar por si tiene algo
-                    active.send_keys(Keys.CONTROL + "a")
+                    active_input.send_keys(Keys.CONTROL + "a")
                     time.sleep(0.1)
-                    active.send_keys(Keys.DELETE)
+                    active_input.send_keys(Keys.DELETE)
                     time.sleep(0.2)
                     
                     # Escribir el username directamente
                     print(f"Escribiendo '{username}' directamente en el elemento activo...")
-                    active.send_keys(username)
+                    active_input.send_keys(username)
                     time.sleep(0.5)
                     
-                    written = active.get_attribute("value")
+                    written = active_input.get_attribute("value")
                     print(f"Valor escrito vía active_element: '{written}'")
                     
                     if written == username:
@@ -426,7 +476,7 @@ class LoginHandler:
                     else:
                         print(f"⚠ El elemento activo no aceptó correctamente el texto (esperado: '{username}', obtenido: '{written}'), sigo con el método largo...")
                 else:
-                    print(f"⚠ El elemento activo no es un input (es {active_tag}), sigo con el método largo...")
+                    print("⚠ No se encontró el campo de usuario como elemento activo, sigo con el método largo...")
             except Exception as e:
                 print(f"⚠ No se pudo escribir usando el elemento activo: {e}")
                 # Si falla, seguimos con el flujo normal (selectores, etc.)

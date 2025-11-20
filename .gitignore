@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Credenciales y configuración sensible
+credentials.json
+config.json
+.env
+
+# Logs
+*.log
+logs/
+
+# ChromeDriver
+chromedriver.exe
+chromedriver
+
+# Screenshots y archivos temporales de debugging
+error_screenshot.png
+*.png
+*.jpg
+*.jpeg
+
+# Archivos temporales de Python
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# WebDriver Manager cache
+.wdm/
+

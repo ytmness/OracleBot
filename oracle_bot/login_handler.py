@@ -409,17 +409,45 @@ class LoginHandler:
             print(f"URL actual: {self.driver.current_url}")
             
             # Verificar que estamos en la página de login (no en la landing page)
-            if 'signin' not in self.driver.current_url.lower() and '63000' not in self.driver.current_url:
-                print("⚠ ERROR: No estamos en la página de login!")
+            current_url = self.driver.current_url.lower()
+            is_login_page = (
+                'signin' in current_url or 
+                'signon.oracle.com' in current_url or
+                '63000' in self.driver.current_url
+            )
+            
+            if not is_login_page:
+                print("⚠ ADVERTENCIA: No parece estar en la página de login")
                 print(f"   URL actual: {self.driver.current_url}")
-                print("   Esperando a que cargue la página de login...")
-                # Esperar a que la URL cambie
-                try:
-                    self.wait.until(lambda driver: 'signin' in driver.current_url.lower() or '63000' in driver.current_url)
-                    print(f"✓ Página de login cargada - URL: {self.driver.current_url}")
-                    time.sleep(2)  # Esperar adicional para que se complete la carga
-                except:
-                    print("⚠ Timeout esperando página de login, pero continuando...")
+                print("   Verificando si hay nueva ventana...")
+                
+                # Verificar si hay múltiples ventanas
+                if len(self.driver.window_handles) > 1:
+                    print(f"   Encontradas {len(self.driver.window_handles)} ventanas")
+                    # Cambiar a la última ventana (probablemente la de login)
+                    self.driver.switch_to.window(self.driver.window_handles[-1])
+                    print(f"   Cambiado a ventana - URL: {self.driver.current_url}")
+                    current_url = self.driver.current_url.lower()
+                    is_login_page = (
+                        'signin' in current_url or 
+                        'signon.oracle.com' in current_url or
+                        '63000' in self.driver.current_url
+                    )
+                
+                if not is_login_page:
+                    print("   Esperando a que cargue la página de login...")
+                    # Esperar a que la URL cambie
+                    try:
+                        self.wait.until(lambda driver: 
+                                      'signin' in driver.current_url.lower() or 
+                                      'signon.oracle.com' in driver.current_url.lower() or
+                                      '63000' in driver.current_url)
+                        print(f"✓ Página de login cargada - URL: {self.driver.current_url}")
+                        time.sleep(2)  # Esperar adicional para que se complete la carga
+                    except:
+                        print("⚠ Timeout esperando página de login, pero continuando...")
+            else:
+                print(f"✓ Estamos en la página de login - URL: {self.driver.current_url}")
             
             # Verificar que la página de login esté cargada
             if not self.verify_login_page_loaded():

@@ -621,54 +621,92 @@ class ClassHandler:
         try:
             print(f"\nCompletando sección (máximo {max_quizzes} quiz/quizzes)...")
             
+            # Esperar un momento para que la página cargue completamente
+            time.sleep(2)
+            
+            # Verificar qué tipo de página es
+            current_url = self.driver.current_url
+            print(f"  URL actual: {current_url}")
+            
             quizzes_completed = 0
             max_attempts = 20  # Límite de intentos para evitar loops infinitos
             attempts = 0
             
-            # Buscar el mapa de progreso (Wizard Steps)
+            # Buscar el mapa de progreso (Wizard Steps) con timeout corto
+            wizard_steps_found = False
             try:
-                wizard_steps = self.wait.until(
+                from selenium.webdriver.support.ui import WebDriverWait as QuickWait
+                quick_wait = QuickWait(self.driver, 3)
+                wizard_steps = quick_wait.until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, self.selectors.WIZARD_STEPS))
                 )
                 print("✓ Mapa de progreso encontrado")
+                wizard_steps_found = True
             except:
-                print("⚠ No se encontró mapa de progreso, continuando...")
+                print("⚠ No se encontró mapa de progreso, puede que esta sección no tenga contenido interactivo")
             
             # Buscar botón "Save and Continue" para avanzar por los módulos
-            while quizzes_completed < max_quizzes and attempts < max_attempts:
-                attempts += 1
-                
-                try:
-                    # Buscar botón "Save and Continue" con timeout corto
-                    from selenium.webdriver.support.ui import WebDriverWait as WDWait
-                    quick_wait = WDWait(self.driver, 2)
+            if wizard_steps_found:
+                while quizzes_completed < max_quizzes and attempts < max_attempts:
+                    attempts += 1
                     
-                    save_continue_button = quick_wait.until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.SAVE_AND_CONTINUE_BUTTON))
-                    )
-                    
-                    print(f"  [{attempts}] Encontrado botón 'Save and Continue', avanzando...")
-                    save_continue_button.click()
-                    time.sleep(2)
-                    
-                except TimeoutException:
-                    # Si no hay más "Save and Continue", buscar quiz
-                    print("  No hay más módulos con 'Save and Continue', buscando quiz...")
-                    break
+                    try:
+                        # Buscar botón "Save and Continue" con timeout corto
+                        from selenium.webdriver.support.ui import WebDriverWait as WDWait
+                        quick_wait = WDWait(self.driver, 2)
+                        
+                        save_continue_button = quick_wait.until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.SAVE_AND_CONTINUE_BUTTON))
+                        )
+                        
+                        print(f"  [{attempts}] Encontrado botón 'Save and Continue', avanzando...")
+                        save_continue_button.click()
+                        time.sleep(2)
+                        
+                    except TimeoutException:
+                        # Si no hay más "Save and Continue", buscar quiz
+                        print("  No hay más módulos con 'Save and Continue', buscando quiz...")
+                        break
             
-            # Buscar y hacer clic en "Take an Assessment"
+            # Buscar y hacer clic en "Take an Assessment" con múltiples métodos
             try:
-                take_assessment_button = self.wait.until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.TAKE_ASSESSMENT_BUTTON))
-                )
+                from selenium.webdriver.support.ui import WebDriverWait as AssessmentWait
+                assessment_wait = AssessmentWait(self.driver, 5)
                 
-                print("  Encontrado botón 'Take an Assessment'")
+                # Método 1: Buscar por ID
+                try:
+                    take_assessment_button = assessment_wait.until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.TAKE_ASSESSMENT_BUTTON))
+                    )
+                    print("  Encontrado botón 'Take an Assessment' (por ID)")
+                except:
+                    # Método 2: Buscar por texto
+                    try:
+                        take_assessment_button = self.driver.find_element(
+                            By.XPATH, 
+                            "//a[contains(@class, 'a-CardView-button')]//span[contains(text(), 'Take an Assessment')]"
+                        )
+                        print("  Encontrado botón 'Take an Assessment' (por texto)")
+                    except:
+                        # Método 3: Buscar cualquier botón con "Assessment" en el texto
+                        try:
+                            take_assessment_button = self.driver.find_element(
+                                By.XPATH,
+                                "//a[contains(., 'Assessment')]"
+                            )
+                            print("  Encontrado botón 'Take an Assessment' (por texto parcial)")
+                        except:
+                            raise Exception("No se encontró el botón 'Take an Assessment'")
+                
+                print("  Haciendo clic en 'Take an Assessment'...")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", take_assessment_button)
+                time.sleep(0.5)
                 take_assessment_button.click()
-                time.sleep(2)
+                time.sleep(3)
                 
                 # Guardar progreso del quiz
                 try:
-                    save_progress_button = self.wait.until(
+                    save_progress_button = assessment_wait.until(
                         EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.SAVE_PROGRESS_BUTTON))
                     )
                     print("  Guardando progreso del quiz...")
@@ -677,10 +715,11 @@ class ClassHandler:
                     quizzes_completed += 1
                     print(f"  ✓ Quiz {quizzes_completed} completado")
                 except:
-                    print("  ⚠ No se encontró botón 'Save Progress'")
+                    print("  ⚠ No se encontró botón 'Save Progress', pero el quiz puede haberse iniciado")
                 
-            except TimeoutException:
-                print("  ⚠ No se encontró botón 'Take an Assessment'")
+            except Exception as e:
+                print(f"  ⚠ No se encontró botón 'Take an Assessment': {str(e)}")
+                print("  Esta sección puede no tener quiz o puede requerir completar módulos primero")
             
             print(f"✓ Sección procesada ({quizzes_completed} quiz/quizzes completados)")
             return True

@@ -34,6 +34,8 @@ wheels/
 credentials.json
 config.json
 .env
+config.ini
+openai_key.txt
 
 # Logs
 *.log

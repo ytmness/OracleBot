@@ -105,6 +105,10 @@ class Selectors:
     TAKE_ASSESSMENT_BUTTON: str = "a#open_assess_id"
     TAKE_ASSESSMENT_BUTTON_XPATH: str = "//a[@id='open_assess_id']//span[contains(text(), 'Take an Assessment')]"
     
+    # Botón Finish Assessment (si el assessment ya está empezado)
+    FINISH_ASSESSMENT_BUTTON: str = "a#open_assess_id"
+    FINISH_ASSESSMENT_BUTTON_XPATH: str = "//a[@id='open_assess_id']//span[contains(text(), 'Finish Assessment')]"
+    
     # Botón Start Quiz
     START_QUIZ_BUTTON: str = "button[data-otel-label='START']"
     START_QUIZ_BUTTON_XPATH: str = "//button[@data-otel-label='START']//span[contains(text(), 'Start')]"

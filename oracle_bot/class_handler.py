@@ -767,52 +767,95 @@ class ClassHandler:
                         print("  No hay más módulos con 'Save and Continue', buscando quiz...")
                         break
             
-            # Buscar y hacer clic en "Take an Assessment" con múltiples métodos
+            # Buscar y hacer clic en "Take an Assessment" o "Finish Assessment"
             try:
                 from selenium.webdriver.support.ui import WebDriverWait as AssessmentWait
                 assessment_wait = AssessmentWait(self.driver, 5)
                 
-                # Método 1: Buscar por ID
-                try:
-                    take_assessment_button = assessment_wait.until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.TAKE_ASSESSMENT_BUTTON))
-                    )
-                    print("  Encontrado botón 'Take an Assessment' (por ID)")
-                except:
-                    # Método 2: Buscar por texto
-                    try:
-                        take_assessment_button = self.driver.find_element(
-                            By.XPATH, 
-                            "//a[contains(@class, 'a-CardView-button')]//span[contains(text(), 'Take an Assessment')]"
-                        )
-                        print("  Encontrado botón 'Take an Assessment' (por texto)")
-                    except:
-                        # Método 3: Buscar cualquier botón con "Assessment" en el texto
-                        try:
-                            take_assessment_button = self.driver.find_element(
-                                By.XPATH,
-                                "//a[contains(., 'Assessment')]"
-                            )
-                            print("  Encontrado botón 'Take an Assessment' (por texto parcial)")
-                        except:
-                            raise Exception("No se encontró el botón 'Take an Assessment'")
+                assessment_button = None
+                is_finish_assessment = False
                 
-                print("  Haciendo clic en 'Take an Assessment'...")
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", take_assessment_button)
+                # Primero verificar si el assessment ya está empezado (Finish Assessment)
+                try:
+                    finish_button = self.driver.find_element(
+                        By.XPATH,
+                        self.selectors.FINISH_ASSESSMENT_BUTTON_XPATH
+                    )
+                    assessment_button = finish_button
+                    is_finish_assessment = True
+                    print("  ✓ Encontrado botón 'Finish Assessment' - El assessment ya está en progreso")
+                except:
+                    # Si no encuentra "Finish", buscar "Take an Assessment"
+                    # Método 1: Buscar por ID
+                    try:
+                        assessment_button = assessment_wait.until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.TAKE_ASSESSMENT_BUTTON))
+                        )
+                        # Verificar el texto del botón
+                        button_text = assessment_button.find_element(By.CSS_SELECTOR, "span.a-CardView-buttonLabel").text.strip()
+                        if "Finish" in button_text:
+                            is_finish_assessment = True
+                            print("  ✓ Encontrado botón 'Finish Assessment' (por ID)")
+                        else:
+                            print("  ✓ Encontrado botón 'Take an Assessment' (por ID)")
+                    except:
+                        # Método 2: Buscar por texto "Take an Assessment"
+                        try:
+                            assessment_button = self.driver.find_element(
+                                By.XPATH, 
+                                self.selectors.TAKE_ASSESSMENT_BUTTON_XPATH
+                            )
+                            print("  ✓ Encontrado botón 'Take an Assessment' (por texto)")
+                        except:
+                            # Método 3: Buscar cualquier botón con "Assessment" en el texto
+                            try:
+                                assessment_button = self.driver.find_element(
+                                    By.XPATH,
+                                    "//a[@id='open_assess_id']"
+                                )
+                                # Verificar el texto
+                                button_text_elem = assessment_button.find_element(By.CSS_SELECTOR, "span.a-CardView-buttonLabel")
+                                button_text = button_text_elem.text.strip()
+                                if "Finish" in button_text:
+                                    is_finish_assessment = True
+                                    print("  ✓ Encontrado botón 'Finish Assessment' (por texto parcial)")
+                                else:
+                                    print("  ✓ Encontrado botón 'Take an Assessment' (por texto parcial)")
+                            except:
+                                raise Exception("No se encontró el botón de Assessment")
+                
+                if not assessment_button:
+                    raise Exception("No se pudo encontrar el botón de Assessment")
+                
+                # Hacer clic en el botón
+                button_action = "Finish Assessment" if is_finish_assessment else "Take an Assessment"
+                print(f"  Haciendo clic en '{button_action}'...")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", assessment_button)
                 time.sleep(0.5)
-                take_assessment_button.click()
+                assessment_button.click()
                 time.sleep(3)
                 
-                # Iniciar el quiz
-                if self.start_quiz():
-                    # Completar el quiz usando OpenAI
+                # Si es "Finish Assessment", continuar desde donde quedó
+                # Si es "Take an Assessment", iniciar nuevo quiz
+                if is_finish_assessment:
+                    print("  Continuando assessment en progreso...")
+                    # Completar el quiz usando OpenAI (continuará desde donde quedó)
                     if self.complete_quiz_with_ai():
                         quizzes_completed += 1
-                        print(f"  ✓ Quiz {quizzes_completed} completado")
+                        print(f"  ✓ Assessment completado")
                     else:
-                        print("  ⚠ El quiz no se pudo completar completamente")
+                        print("  ⚠ El assessment no se pudo completar completamente")
                 else:
-                    print("  ⚠ No se pudo iniciar el quiz")
+                    # Iniciar el quiz nuevo
+                    if self.start_quiz():
+                        # Completar el quiz usando OpenAI
+                        if self.complete_quiz_with_ai():
+                            quizzes_completed += 1
+                            print(f"  ✓ Quiz {quizzes_completed} completado")
+                        else:
+                            print("  ⚠ El quiz no se pudo completar completamente")
+                    else:
+                        print("  ⚠ No se pudo iniciar el quiz")
                 
             except Exception as e:
                 print(f"  ⚠ No se encontró botón 'Take an Assessment': {str(e)}")

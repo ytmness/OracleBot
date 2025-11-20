@@ -172,30 +172,104 @@ class ClassHandler:
             
             for index, item in enumerate(class_items, start=1):
                 try:
-                    # Obtener título
-                    title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.CLASS_TITLE)
-                    title = title_elem.text.strip()
+                    print(f"\n  Procesando clase {index}...")
+                    
+                    # Obtener título - intentar múltiples métodos
+                    title = ""
+                    try:
+                        title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.CLASS_TITLE)
+                        title = title_elem.text.strip()
+                    except:
+                        # Método alternativo 1: buscar cualquier h3 dentro del item
+                        try:
+                            title_elem = item.find_element(By.CSS_SELECTOR, "h3")
+                            title = title_elem.text.strip()
+                        except:
+                            # Método alternativo 2: buscar por XPath
+                            try:
+                                title_elem = item.find_element(By.XPATH, ".//h3[@class='a-CardView-title']")
+                                title = title_elem.text.strip()
+                            except:
+                                # Método alternativo 3: buscar cualquier texto destacado
+                                try:
+                                    title_elem = item.find_element(By.XPATH, ".//h3")
+                                    title = title_elem.text.strip()
+                                except:
+                                    # Último recurso: obtener texto del item completo
+                                    item_text = item.text.strip()
+                                    if item_text:
+                                        # Tomar las primeras líneas como título
+                                        lines = item_text.split('\n')
+                                        title = lines[0] if lines else "Sin título"
+                    
+                    if not title:
+                        print(f"    ⚠ No se pudo obtener título, usando texto del elemento completo")
+                        title = item.text.strip()[:50] if item.text else "Sin título"
                     
                     # Obtener subtítulo
+                    subtitle = ""
                     try:
                         subtitle_elem = item.find_element(By.CSS_SELECTOR, self.selectors.CLASS_SUBTITLE)
                         subtitle = subtitle_elem.text.strip()
                     except:
-                        subtitle = ""
+                        try:
+                            subtitle_elem = item.find_element(By.CSS_SELECTOR, "h4")
+                            subtitle = subtitle_elem.text.strip()
+                        except:
+                            pass
                     
                     # Obtener cuerpo/descripción
+                    body = ""
                     try:
                         body_elem = item.find_element(By.CSS_SELECTOR, self.selectors.CLASS_BODY)
                         body = body_elem.text.strip()
                     except:
-                        body = ""
+                        try:
+                            body_elem = item.find_element(By.CSS_SELECTOR, "div.a-CardView-mainContent")
+                            body = body_elem.text.strip()
+                        except:
+                            # Intentar obtener cualquier div con contenido
+                            try:
+                                body_elems = item.find_elements(By.CSS_SELECTOR, "div")
+                                for div in body_elems:
+                                    div_text = div.text.strip()
+                                    if div_text and len(div_text) > 20:  # Texto sustancial
+                                        body = div_text
+                                        break
+                            except:
+                                pass
+                    
+                    # Buscar el botón "Take Class" para verificar que es una clase válida
+                    take_class_button = None
+                    try:
+                        take_class_button = item.find_element(
+                            By.XPATH, 
+                            ".//a[@class='a-CardView-button t-Button--hot']//span[contains(text(), 'Take Class')]"
+                        )
+                    except:
+                        # Intentar método alternativo
+                        try:
+                            take_class_button = item.find_element(
+                                By.CSS_SELECTOR,
+                                "a.a-CardView-button"
+                            )
+                        except:
+                            pass
+                    
+                    if not take_class_button:
+                        print(f"    ⚠ No se encontró botón 'Take Class' en esta clase, puede que no sea una clase válida")
                     
                     class_info = ClassInfo(index, title, subtitle, body, item)
                     classes.append(class_info)
-                    print(f"  {class_info}")
+                    print(f"  ✓ {class_info}")
                     
                 except Exception as e:
                     print(f"  ⚠ Error al procesar clase {index}: {str(e)}")
+                    # Mostrar información de debugging
+                    try:
+                        print(f"    HTML del item: {item.get_attribute('outerHTML')[:200]}...")
+                    except:
+                        pass
                     continue
             
             return classes

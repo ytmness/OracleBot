@@ -939,7 +939,7 @@ class ClassHandler:
             
         except Exception as e:
             print(f"⚠ Error al navegar de vuelta: {str(e)}")
-            # Intentar navegar directamente usando JavaScript
+            # Intentar navegar directamente usando JavaScript1
             try:
                 print("Intentando navegar con JavaScript...")
                 self.driver.execute_script("window.history.go(-2);")  # Retroceder 2 páginas
@@ -1259,6 +1259,89 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             print(f"  ✗ Error al consultar OpenAI: {str(e)}")
             return [1]
     
+    def click_complete_assessment_button(self) -> bool:
+        """
+        Busca y hace clic en el botón "Complete Assessment" con múltiples métodos
+        
+        Returns:
+            True si encontró y clickeó el botón, False en caso contrario
+        """
+        try:
+            # Método 1: Buscar por selector CSS
+            try:
+                complete_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.COMPLETE_ASSESSMENT_BUTTON)
+                button_text = complete_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                if "Complete Assessment" in button_text or "Complete" in button_text:
+                    print("  ✓ Encontrado botón 'Complete Assessment' (por CSS)")
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                    time.sleep(0.8)
+                    complete_button.click()
+                    time.sleep(4)
+                    print("  ✓ Clic en 'Complete Assessment' realizado")
+                    return True
+            except:
+                pass
+            
+            # Método 2: Buscar por XPath con texto
+            try:
+                complete_button = self.driver.find_element(By.XPATH, self.selectors.COMPLETE_ASSESSMENT_BUTTON_XPATH)
+                print("  ✓ Encontrado botón 'Complete Assessment' (por XPath)")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                time.sleep(0.8)
+                complete_button.click()
+                time.sleep(4)
+                print("  ✓ Clic en 'Complete Assessment' realizado")
+                return True
+            except:
+                pass
+            
+            # Método 3: Buscar por data-otel-label
+            try:
+                complete_button = self.driver.find_element(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
+                print("  ✓ Encontrado botón 'Complete Assessment' (por data-otel-label)")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                time.sleep(0.8)
+                complete_button.click()
+                time.sleep(4)
+                print("  ✓ Clic en 'Complete Assessment' realizado")
+                return True
+            except:
+                pass
+            
+            # Método 4: Buscar cualquier botón con texto "Complete Assessment"
+            try:
+                complete_button = self.driver.find_element(By.XPATH, "//button[contains(., 'Complete Assessment')]")
+                print("  ✓ Encontrado botón 'Complete Assessment' (por texto)")
+                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                time.sleep(0.8)
+                complete_button.click()
+                time.sleep(4)
+                print("  ✓ Clic en 'Complete Assessment' realizado")
+                return True
+            except:
+                pass
+            
+            # Método 5: Buscar por ID que empiece con B (patrón común)
+            try:
+                buttons = self.driver.find_elements(By.CSS_SELECTOR, "button[id^='B'][data-otel-label='CONFIRMCOMPLETE']")
+                if buttons:
+                    complete_button = buttons[0]
+                    print("  ✓ Encontrado botón 'Complete Assessment' (por ID y data-otel-label)")
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                    time.sleep(0.8)
+                    complete_button.click()
+                    time.sleep(4)
+                    print("  ✓ Clic en 'Complete Assessment' realizado")
+                    return True
+            except:
+                pass
+            
+            return False
+            
+        except Exception as e:
+            print(f"  ⚠ Error al buscar botón 'Complete Assessment': {str(e)}")
+            return False
+    
     def go_to_next_question(self) -> bool:
         """
         Avanza a la siguiente pregunta o envía el quiz
@@ -1328,17 +1411,9 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                 pass
             
             # Método 4: Buscar botón "Complete Assessment" (al final del quiz)
-            try:
-                complete_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.COMPLETE_ASSESSMENT_BUTTON)
-                print("  Encontrado botón 'Complete Assessment'")
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                time.sleep(0.5)
-                complete_button.click()
-                time.sleep(3)
-                print("  ✓ Assessment completado")
+            complete_clicked = self.click_complete_assessment_button()
+            if complete_clicked:
                 return False  # Quiz terminado
-            except:
-                pass
             
             print("  ⚠ No se encontró botón Next/Submit/Complete")
             return False
@@ -1375,17 +1450,31 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                         print("  ⚠ Contenedor de pregunta no visible, puede que el quiz haya terminado")
                         break
                 except:
-                    # Si no encuentra el contenedor, verificar si hay mensaje de finalización
+                    # Si no encuentra el contenedor, verificar si hay mensaje de finalización o botón Complete
                     try:
                         # Buscar indicadores de que el quiz terminó
                         page_text = self.driver.page_source.lower()
                         if "quiz complete" in page_text or "assessment complete" in page_text or "results" in page_text:
-                            print("  ✓ Quiz completado (indicador encontrado)")
+                            print("  ✓ Quiz completado (indicador encontrado en página)")
+                            # Intentar hacer clic en Complete Assessment
+                            time.sleep(2)
+                            if self.click_complete_assessment_button():
+                                print("  ✓ Botón 'Complete Assessment' clickeado")
+                            break
+                        
+                        # También buscar el botón Complete Assessment directamente
+                        time.sleep(2)
+                        if self.click_complete_assessment_button():
+                            print("  ✓ Botón 'Complete Assessment' encontrado y clickeado")
                             break
                     except:
                         pass
                     
                     print("  ⚠ No se encontró contenedor de pregunta, puede que el quiz haya terminado")
+                    # Último intento de buscar Complete Assessment
+                    time.sleep(2)
+                    if self.click_complete_assessment_button():
+                        print("  ✓ Botón 'Complete Assessment' encontrado al final")
                     break
                 
                 # Extraer pregunta y opciones
@@ -1467,17 +1556,27 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                     consecutive_errors = 0
                     
                     # Esperar un momento antes de avanzar
-                    time.sleep(1)
+                    time.sleep(1.5)
                     
                     # Avanzar a la siguiente pregunta
                     has_more = self.go_to_next_question()
                     
                     if not has_more:
-                        print(f"\n  ✓ Quiz completado - Total de preguntas respondidas: {questions_answered}")
+                        print(f"\n  ✓ Última pregunta respondida - Total: {questions_answered}")
+                        
+                        # Buscar explícitamente el botón "Complete Assessment" después de la última pregunta
+                        print("  🔍 Buscando botón 'Complete Assessment'...")
+                        complete_clicked = self.click_complete_assessment_button()
+                        
+                        if complete_clicked:
+                            print(f"\n  ✓ Quiz completado exitosamente - Total de preguntas respondidas: {questions_answered}")
+                        else:
+                            print(f"\n  ⚠ Quiz completado pero no se encontró el botón 'Complete Assessment'")
+                            print(f"  Total de preguntas respondidas: {questions_answered}")
                         break
                     
                     # Esperar a que cargue la siguiente pregunta
-                    time.sleep(2)
+                    time.sleep(2.5)
             
             print(f"\n  {'='*50}")
             print(f"  RESUMEN: {questions_answered} preguntas respondidas")

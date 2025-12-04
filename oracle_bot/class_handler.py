@@ -1011,36 +1011,49 @@ class ClassHandler:
                         )
                         print("  ✓ Encontrado botón 'Take Class', haciendo clic...")
                         take_class_button.click()
-                        time.sleep(5)  # Esperar más tiempo para que cargue la página de la clase
                         
-                        # Verificar que estamos en la página de la clase (debería tener secciones)
-                        current_url = self.driver.current_url
-                        print(f"  📋 URL después de hacer clic en 'Take Class': {current_url[:100]}...")
+                        # Esperar a que cargue la página de la clase (igual que en select_class)
+                        print("  ⏳ Esperando a que cargue la página de la clase...")
+                        time.sleep(5)
                         
-                        # Esperar a que aparezcan las secciones
+                        # Verificar que estamos en la página de la clase (buscar secciones)
+                        # Usar la misma lógica que select_class
                         try:
-                            from selenium.webdriver.support.ui import WebDriverWait
-                            wait = WebDriverWait(self.driver, 10)
-                            wait.until(
+                            print("  🔍 Buscando secciones en la página...")
+                            self.wait.until(
                                 EC.presence_of_element_located((By.CSS_SELECTOR, self.selectors.SECTION_ITEM))
                             )
                             print("✓ Secciones encontradas después de hacer clic en 'Take Class'")
+                            # Guardar la URL de la clase para referencia futura
+                            current_url = self.driver.current_url
+                            self.current_class_url = current_url
+                            print(f"  📋 URL de la clase guardada: {current_url[:100]}...")
                             return True
-                        except:
-                            # Si no encuentra secciones directamente, buscar enlace a secciones
-                            try:
-                                sections_link = self.driver.find_element(By.CSS_SELECTOR, "a[href*='63000:15']")
-                                sections_link.click()
-                                time.sleep(5)
-                                print("✓ Navegado a secciones desde la clase")
+                        except Exception as e:
+                            print(f"  ⚠ No se encontraron secciones directamente: {str(e)}")
+                            # Verificar la URL actual
+                            current_url = self.driver.current_url
+                            print(f"  📋 URL actual: {current_url[:100]}...")
+                            
+                            # Si ya estamos en secciones (p=63000:15), retornar True
+                            if "63000:15" in current_url or "P15" in current_url:
+                                print("✓ Ya estamos en la página de secciones")
                                 return True
-                            except:
-                                print("⚠ No se encontró enlace a secciones, pero continuando...")
-                                # Verificar si ya estamos en secciones
-                                current_url = self.driver.current_url
-                                if "63000:15" in current_url or "P15" in current_url:
-                                    print("✓ Ya estamos en la página de secciones")
+                            
+                            # Si estamos en la página de la clase (p=63000:14), las secciones deberían estar ahí
+                            # Esperar un poco más y buscar de nuevo
+                            print("  ⏳ Esperando un poco más para que carguen las secciones...")
+                            time.sleep(3)
+                            try:
+                                sections = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.SECTION_ITEM)
+                                if sections:
+                                    print(f"✓ Secciones encontradas después de esperar adicional ({len(sections)} secciones)")
                                     return True
+                                else:
+                                    print("⚠ Aún no se encuentran secciones, pero continuando...")
+                                    return True
+                            except:
+                                print("⚠ No se pudieron encontrar secciones, pero continuando...")
                                 return True
                     except Exception as e:
                         print(f"⚠ Error al hacer clic en 'Take Class': {str(e)}")

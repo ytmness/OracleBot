@@ -213,21 +213,16 @@ def continue_automatically(class_handler: ClassHandler, last_class_index: int = 
             print("\n⚠ No se encontraron secciones")
             return False
         
-        # Encontrar la primera sección pendiente
-        start_index = 0
-        if last_section_index is not None:
-            start_index = last_section_index + 1
-        
-        # Buscar la primera sección pendiente desde start_index
+        # Buscar la primera sección pendiente (no completada)
+        # No usar índices anteriores porque las secciones se refrescan
         found_pending = False
-        for i in range(start_index, len(sections)):
-            section = sections[i]
-            
+        for i, section in enumerate(sections):
             if not section.is_complete:
                 found_pending = True
                 print(f"\n{'='*60}")
                 print(f"PROCESANDO SECCIÓN {i+1}/{len(sections)}: {section.title}")
                 print(f"{'='*60}")
+                print(f"  📋 Sección {i+1} está pendiente, continuando desde aquí...")
                 
                 # Seleccionar sección
                 if class_handler.select_section(section):
@@ -244,8 +239,9 @@ def continue_automatically(class_handler: ClassHandler, last_class_index: int = 
                     # Esperar un momento antes de continuar
                     time.sleep(2)
                     
-                    # Continuar automáticamente con la siguiente sección
-                    return continue_automatically(class_handler, last_class_index, i)
+                    # Continuar automáticamente con la siguiente sección pendiente
+                    # No pasar el índice porque queremos buscar desde el principio la siguiente pendiente
+                    return continue_automatically(class_handler, last_class_index, None)
                 else:
                     print(f"⚠ No se pudo seleccionar la sección {i+1}")
                     return False
@@ -384,12 +380,11 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler, first_
                                         # Esperar un momento antes de continuar
                                         time.sleep(2)
                                         
-                                        # Después de completar la primera sección, continuar automáticamente
-                                        if i == 0:
-                                            print("\n🔄 Continuando automáticamente con las siguientes secciones...")
-                                            # Continuar automáticamente desde la siguiente sección
-                                            continue_automatically(class_handler, class_choice - 1, i)
-                                            break  # Salir del loop manual, ya que continue_automatically maneja el resto
+                                    # Después de completar cualquier sección, continuar automáticamente
+                                    print("\n🔄 Continuando automáticamente con las siguientes secciones...")
+                                    # Continuar automáticamente buscando la siguiente sección pendiente
+                                    continue_automatically(class_handler, class_choice - 1, None)
+                                    break  # Salir del loop manual, ya que continue_automatically maneja el resto
                                         
                                         # Avanzar al siguiente índice
                                         i += 1

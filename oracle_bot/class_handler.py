@@ -2227,9 +2227,10 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                         print(f"    Antes: {url_before[:100]}...")
                         print(f"    Después: {url_after[:100]}...")
                         
-                        # Verificar si estamos en página de resultados/confirmación (p=63000:190)
-                        if ':190:' in url_after or 'P190' in url_after:
-                            print("  📋 Detectada página de resultados/confirmación (p=63000:190)")
+                        # Verificar si estamos en página de resultados (p=63000:192, NO p=63000:190 que es el quiz)
+                        # p=63000:190 es la página del quiz, p=63000:192 es la página de resultados
+                        if ':192:' in url_after or 'P192' in url_after:
+                            print("  📋 Detectada página de resultados (p=63000:192)")
                             # Esperar a que cargue completamente la nueva página
                             time.sleep(5)
                             # Buscar el botón en esta nueva página
@@ -2238,41 +2239,71 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                             if complete_clicked:
                                 print(f"\n  ✓ Quiz completado exitosamente - Total de preguntas respondidas: {questions_answered}")
                                 break
+                        else:
+                            # Si cambió pero sigue siendo página del quiz (p=63000:190), solo continuar
+                            print("  📋 URL cambió pero sigue siendo página del quiz, continuando...")
                     
                     if not has_more:
                         print(f"\n  ✓ Última pregunta respondida - Total: {questions_answered}")
                         
-                        # Esperar más tiempo para que aparezca el botón o cambie la página
-                        print("  ⏳ Esperando a que aparezca el botón o cambie la página...")
-                        for wait_attempt in range(5):
-                            time.sleep(2)
-                            current_url = self.driver.current_url
-                            
-                            # Verificar si cambió a página de resultados
-                            if ':190:' in current_url or 'P190' in current_url:
-                                print(f"  📋 Página cambió a resultados: {current_url[:100]}...")
-                                time.sleep(3)  # Esperar a que cargue
-                                break
-                            
-                            # Intentar buscar el botón
-                            try:
-                                btn = self.driver.find_element(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
-                                if btn:
-                                    print("  ✓ Botón encontrado durante la espera")
+                        # Verificar que realmente sea la última pregunta leyendo el heading
+                        is_really_last = False
+                        try:
+                            question_heading = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_HEADING)
+                            heading_text = question_heading.text.strip()
+                            match = re.search(r'Question\s+(\d+)\s+of\s+(\d+)', heading_text, re.IGNORECASE)
+                            if match:
+                                current_q = int(match.group(1))
+                                total_q = int(match.group(2))
+                                if current_q == total_q:
+                                    is_really_last = True
+                                    print(f"  ✓ Confirmado: Es la última pregunta ({current_q} de {total_q})")
+                        except:
+                            pass
+                        
+                        # Solo buscar Complete Assessment si realmente es la última pregunta
+                        if is_really_last:
+                            # Esperar más tiempo para que aparezca el botón o cambie la página
+                            print("  ⏳ Esperando a que aparezca el botón o cambie la página...")
+                            for wait_attempt in range(5):
+                                time.sleep(2)
+                                current_url = self.driver.current_url
+                                
+                                # Verificar si cambió a página de resultados (p=63000:192)
+                                if ':192:' in current_url or 'P192' in current_url:
+                                    print(f"  📋 Página cambió a resultados: {current_url[:100]}...")
+                                    time.sleep(3)  # Esperar a que cargue
                                     break
-                            except:
-                                pass
-                        
-                        # Buscar explícitamente el botón "Complete Assessment"
-                        print("  🔍 Buscando botón 'Complete Assessment'...")
-                        complete_clicked = self.click_complete_assessment_button()
-                        
-                        if complete_clicked:
-                            print(f"\n  ✓ Quiz completado exitosamente - Total de preguntas respondidas: {questions_answered}")
+                                
+                                # Intentar buscar el botón en la página del quiz
+                                try:
+                                    btn = self.driver.find_element(By.CSS_SELECTOR, "button#quiz-submit")
+                                    button_text = ""
+                                    try:
+                                        button_text = btn.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                                    except:
+                                        button_text = btn.text.strip()
+                                    
+                                    if "Complete Assessment" in button_text:
+                                        print("  ✓ Botón 'Complete Assessment' encontrado durante la espera")
+                                        break
+                                except:
+                                    pass
+                            
+                            # Buscar explícitamente el botón "Complete Assessment"
+                            print("  🔍 Buscando botón 'Complete Assessment'...")
+                            complete_clicked = self.click_complete_assessment_button()
+                            
+                            if complete_clicked:
+                                print(f"\n  ✓ Quiz completado exitosamente - Total de preguntas respondidas: {questions_answered}")
+                            else:
+                                print(f"\n  ⚠ Quiz completado pero no se encontró el botón 'Complete Assessment'")
+                                print(f"  Total de preguntas respondidas: {questions_answered}")
+                                print(f"  URL actual: {self.driver.current_url}")
                         else:
-                            print(f"\n  ⚠ Quiz completado pero no se encontró el botón 'Complete Assessment'")
-                            print(f"  Total de preguntas respondidas: {questions_answered}")
-                            print(f"  URL actual: {self.driver.current_url}")
+                            print(f"  ⚠ go_to_next_question() retornó False pero no es la última pregunta")
+                            print(f"  Continuando con siguiente pregunta...")
+                        
                         break
                     
                     # Esperar a que cargue la siguiente pregunta

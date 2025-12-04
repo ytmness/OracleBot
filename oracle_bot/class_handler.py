@@ -1360,43 +1360,74 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             except:
                 pass
             
-            # Método PRIMERO: Buscar directamente el botón por data-otel-label (más rápido)
+            # Método PRIMERO: Buscar directamente el botón por ID quiz-submit (más específico)
             try:
-                print("  🔍 Buscando botón por data-otel-label='CONFIRMCOMPLETE'...")
+                print("  🔍 Buscando botón por id='quiz-submit'...")
                 complete_button = wait_modal.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']"))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "button#quiz-submit"))
                 )
-                
-                # Verificar visibilidad con JavaScript
-                is_visible = self.driver.execute_script(
-                    "return arguments[0].offsetParent !== null && "
-                    "window.getComputedStyle(arguments[0]).display !== 'none' && "
-                    "window.getComputedStyle(arguments[0]).visibility !== 'hidden';",
-                    complete_button
-                )
-                
-                if is_visible:
-                    print("  ✓ Botón 'Complete Assessment' encontrado (por data-otel-label)")
-                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                    time.sleep(1)
-                    
-                    # Intentar hacer clic con JavaScript si el clic normal falla
+                print("  ✓ Botón encontrado por ID quiz-submit")
+            except:
+                # Método PRIMERO.5: Buscar por data-otel-label='SUBMIT'
+                try:
+                    print("  🔍 Buscando botón por data-otel-label='SUBMIT'...")
+                    complete_button = wait_modal.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-otel-label='SUBMIT']"))
+                    )
+                    print("  ✓ Botón encontrado por data-otel-label='SUBMIT'")
+                except:
+                    # Método PRIMERO.6: Buscar por data-otel-label='CONFIRMCOMPLETE'
                     try:
-                        complete_button.click()
+                        print("  🔍 Buscando botón por data-otel-label='CONFIRMCOMPLETE'...")
+                        complete_button = wait_modal.until(
+                            EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']"))
+                        )
+                        print("  ✓ Botón encontrado por data-otel-label='CONFIRMCOMPLETE'")
                     except:
-                        print("  ⚠ Clic normal falló, intentando con JavaScript...")
-                        self.driver.execute_script("arguments[0].click();", complete_button)
+                        complete_button = None
+                
+                if complete_button:
+                    # Verificar visibilidad con JavaScript
+                    is_visible = self.driver.execute_script(
+                        "return arguments[0].offsetParent !== null && "
+                        "window.getComputedStyle(arguments[0]).display !== 'none' && "
+                        "window.getComputedStyle(arguments[0]).visibility !== 'hidden';",
+                        complete_button
+                    )
                     
-                    time.sleep(4)
-                    print("  ✓ Clic en 'Complete Assessment' realizado")
-                    # Si cambiamos de ventana, volver a la original
-                    if window_count_after > window_count_before:
-                        self.driver.switch_to.window(original_window)
-                    return True
-                else:
-                    print("  ⚠ Botón encontrado pero no está visible")
+                    # Verificar el texto del botón para confirmar que es "Complete Assessment"
+                    button_text = ""
+                    try:
+                        button_text = complete_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                    except:
+                        button_text = complete_button.text.strip()
+                    
+                    print(f"  📋 Texto del botón encontrado: '{button_text}'")
+                    
+                    if is_visible and ("Complete Assessment" in button_text or "Complete" in button_text):
+                        print("  ✓ Botón 'Complete Assessment' encontrado y visible")
+                        self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                        time.sleep(1)
+                        
+                        # Intentar hacer clic con JavaScript si el clic normal falla
+                        try:
+                            complete_button.click()
+                            print("  ✓ Clic realizado con método normal")
+                        except:
+                            print("  ⚠ Clic normal falló, intentando con JavaScript...")
+                            self.driver.execute_script("arguments[0].click();", complete_button)
+                            print("  ✓ Clic realizado con JavaScript")
+                        
+                        time.sleep(4)
+                        print("  ✓ Clic en 'Complete Assessment' realizado")
+                        # Si cambiamos de ventana, volver a la original
+                        if window_count_after > window_count_before:
+                            self.driver.switch_to.window(original_window)
+                        return True
+                    else:
+                        print(f"  ⚠ Botón encontrado pero no está visible o no tiene el texto correcto (visible={is_visible}, texto='{button_text}')")
             except Exception as e:
-                print(f"  ⚠ No se encontró botón por data-otel-label: {str(e)}")
+                print(f"  ⚠ No se encontró botón por ID/data-otel-label: {str(e)}")
                 pass
             
             # Intentar esperar a que aparezca el overlay ui-widget-overlay (jQuery UI modal)

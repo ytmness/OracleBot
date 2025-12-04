@@ -131,6 +131,9 @@ class Selectors:
     SUBMIT_ANSWER_BUTTON: str = "button#quiz-submit"  # Alias para claridad
     
     # Botón Complete Assessment (al final del quiz)
-    COMPLETE_ASSESSMENT_BUTTON: str = "button[data-otel-label='CONFIRMCOMPLETE']"
-    COMPLETE_ASSESSMENT_BUTTON_XPATH: str = "//button[@data-otel-label='CONFIRMCOMPLETE']//span[contains(text(), 'Complete Assessment')]"
+    # Puede tener data-otel-label='CONFIRMCOMPLETE' o 'SUBMIT', o id='quiz-submit'
+    COMPLETE_ASSESSMENT_BUTTON: str = "button[data-otel-label='CONFIRMCOMPLETE'], button[data-otel-label='SUBMIT'], button#quiz-submit"
+    COMPLETE_ASSESSMENT_BUTTON_XPATH: str = "//button[@data-otel-label='CONFIRMCOMPLETE']//span[contains(text(), 'Complete Assessment')] | //button[@data-otel-label='SUBMIT']//span[contains(text(), 'Complete Assessment')] | //button[@id='quiz-submit']"
+    COMPLETE_ASSESSMENT_BUTTON_BY_ID: str = "button#quiz-submit"
+    COMPLETE_ASSESSMENT_BUTTON_BY_SUBMIT: str = "button[data-otel-label='SUBMIT']"
 

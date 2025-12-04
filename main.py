@@ -172,24 +172,119 @@ def get_credentials():
     return username, password
 
 
-def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler):
+def continue_automatically(class_handler: ClassHandler, last_class_index: int = None, last_section_index: int = None):
     """
-    Menú interactivo para seleccionar clases y secciones
+    Continúa automáticamente con la siguiente sección pendiente
+    
+    Args:
+        class_handler: Instancia del ClassHandler
+        last_class_index: Índice de la última clase procesada (None si es primera vez)
+        last_section_index: Índice de la última sección procesada (None si es primera vez)
+    """
+    try:
+        print("\n" + "=" * 60)
+        print("CONTINUANDO AUTOMÁTICAMENTE")
+        print("=" * 60)
+        
+        # Obtener clases disponibles
+        classes = class_handler.get_available_classes()
+        
+        if not classes:
+            print("\n⚠ No hay clases disponibles")
+            return False
+        
+        # Si no hay información de última clase, usar la primera
+        if last_class_index is None or last_class_index >= len(classes):
+            selected_class = classes[0]
+            print(f"\n📋 Seleccionando primera clase disponible: {selected_class.title}")
+        else:
+            selected_class = classes[last_class_index]
+            print(f"\n📋 Continuando con clase: {selected_class.title}")
+        
+        # Seleccionar la clase
+        if not class_handler.select_class(selected_class):
+            print("⚠ No se pudo seleccionar la clase")
+            return False
+        
+        # Obtener secciones
+        sections = class_handler.get_sections()
+        
+        if not sections:
+            print("\n⚠ No se encontraron secciones")
+            return False
+        
+        # Encontrar la primera sección pendiente
+        start_index = 0
+        if last_section_index is not None:
+            start_index = last_section_index + 1
+        
+        # Buscar la primera sección pendiente desde start_index
+        found_pending = False
+        for i in range(start_index, len(sections)):
+            section = sections[i]
+            
+            if not section.is_complete:
+                found_pending = True
+                print(f"\n{'='*60}")
+                print(f"PROCESANDO SECCIÓN {i+1}/{len(sections)}: {section.title}")
+                print(f"{'='*60}")
+                
+                # Seleccionar sección
+                if class_handler.select_section(section):
+                    # Completar la sección (hacer el primer quiz)
+                    class_handler.complete_section(max_quizzes=1)
+                    
+                    # Volver a la lista de secciones
+                    print("\n🔄 Regresando a la lista de secciones...")
+                    if not class_handler.go_back_to_sections():
+                        print("⚠ No se pudo volver a la lista de secciones, intentando refrescar...")
+                        class_handler.driver.refresh()
+                        time.sleep(3)
+                    
+                    # Esperar un momento antes de continuar
+                    time.sleep(2)
+                    
+                    # Continuar automáticamente con la siguiente sección
+                    return continue_automatically(class_handler, last_class_index, i)
+                else:
+                    print(f"⚠ No se pudo seleccionar la sección {i+1}")
+                    return False
+        
+        if not found_pending:
+            print("\n✓ Todas las secciones están completadas")
+            return True
+        
+        return True
+        
+    except Exception as e:
+        print(f"\n✗ Error al continuar automáticamente: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler, first_time: bool = True):
+    """
+    Menú interactivo para seleccionar clases y secciones (solo primera vez)
+    Después continúa automáticamente
     
     Args:
         driver: Instancia del WebDriver
         class_handler: Instancia del ClassHandler
+        first_time: Si es True, muestra el menú. Si es False, continúa automáticamente
     """
     try:
-        while True:
-            print("\n" + "=" * 60)
-            print("MENÚ PRINCIPAL")
-            print("=" * 60)
-            print("1. Ver clases disponibles")
-            print("2. Seleccionar clase y completar secciones")
-            print("3. Salir")
-            
-            choice = input("\nSeleccione una opción (1-3): ").strip()
+        if first_time:
+            # Primera vez: mostrar menú
+            while True:
+                print("\n" + "=" * 60)
+                print("MENÚ PRINCIPAL")
+                print("=" * 60)
+                print("1. Ver clases disponibles")
+                print("2. Seleccionar clase y completar secciones")
+                print("3. Salir")
+                
+                choice = input("\nSeleccione una opción (1-3): ").strip()
             
             if choice == "1":
                 # Ver clases disponibles

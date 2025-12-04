@@ -285,16 +285,16 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler, first_
                 print("3. Salir")
                 
                 choice = input("\nSeleccione una opción (1-3): ").strip()
-            
-            if choice == "1":
+                
+                if choice == "1":
                 # Ver clases disponibles
                 classes = class_handler.get_available_classes()
                 if classes:
                     print(f"\n✓ Total de clases encontradas: {len(classes)}")
                 else:
                     print("\n⚠ No se encontraron clases disponibles")
-            
-            elif choice == "2":
+                
+                elif choice == "2":
                 # Seleccionar clase y completar secciones
                 classes = class_handler.get_available_classes()
                 

@@ -1656,26 +1656,94 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             print(f"    - Ventanas abiertas: {len(self.driver.window_handles)}")
             print(f"    - Ventana actual: {self.driver.current_window_handle}")
             
-            # Buscar todos los botones visibles con "Complete" en el texto
+            # Buscar TODOS los botones en la página (visibles y no visibles)
             try:
+                print("  🔍 Buscando TODOS los botones en la página...")
                 all_buttons = self.driver.find_elements(By.TAG_NAME, "button")
+                print(f"    - Total de botones encontrados: {len(all_buttons)}")
+                
                 complete_buttons = []
+                confirmcomplete_buttons = []
+                
                 for btn in all_buttons:
                     try:
-                        btn_text = btn.text.lower()
-                        if "complete" in btn_text and btn.is_displayed():
-                            complete_buttons.append(btn)
+                        btn_text = btn.text.strip().lower()
+                        btn_id = btn.get_attribute('id') or ''
+                        btn_data_label = btn.get_attribute('data-otel-label') or ''
+                        
+                        # Buscar por texto
+                        if "complete assessment" in btn_text or "complete" in btn_text:
+                            is_visible = btn.is_displayed()
+                            complete_buttons.append({
+                                'element': btn,
+                                'text': btn.text.strip(),
+                                'id': btn_id,
+                                'data-otel-label': btn_data_label,
+                                'visible': is_visible
+                            })
+                        
+                        # Buscar por data-otel-label
+                        if 'CONFIRMCOMPLETE' in btn_data_label or 'confirmcomplete' in btn_data_label.lower():
+                            is_visible = btn.is_displayed()
+                            confirmcomplete_buttons.append({
+                                'element': btn,
+                                'text': btn.text.strip(),
+                                'id': btn_id,
+                                'data-otel-label': btn_data_label,
+                                'visible': is_visible
+                            })
                     except:
                         continue
                 
+                # Mostrar botones encontrados
                 if complete_buttons:
-                    print(f"    - Encontrados {len(complete_buttons)} botón(es) con 'Complete' en el texto")
-                    for idx, btn in enumerate(complete_buttons[:3], 1):  # Mostrar primeros 3
+                    print(f"    - Encontrados {len(complete_buttons)} botón(es) con 'Complete' en el texto:")
+                    for idx, btn_info in enumerate(complete_buttons[:5], 1):
+                        print(f"      {idx}. texto='{btn_info['text'][:60]}', id='{btn_info['id']}', data-otel-label='{btn_info['data-otel-label']}', visible={btn_info['visible']}")
+                
+                if confirmcomplete_buttons:
+                    print(f"    - Encontrados {len(confirmcomplete_buttons)} botón(es) con CONFIRMCOMPLETE:")
+                    for idx, btn_info in enumerate(confirmcomplete_buttons[:5], 1):
+                        print(f"      {idx}. texto='{btn_info['text'][:60]}', id='{btn_info['id']}', data-otel-label='{btn_info['data-otel-label']}', visible={btn_info['visible']}")
+                
+                # Intentar hacer clic en el primer botón encontrado con CONFIRMCOMPLETE
+                if confirmcomplete_buttons:
+                    for btn_info in confirmcomplete_buttons:
                         try:
-                            print(f"      Botón {idx}: texto='{btn.text[:50]}', id='{btn.get_attribute('id')}', data-otel-label='{btn.get_attribute('data-otel-label')}'")
-                        except:
-                            pass
-            except:
+                            btn = btn_info['element']
+                            print(f"  🎯 Intentando hacer clic en botón: id='{btn_info['id']}', texto='{btn_info['text']}'")
+                            
+                            # Intentar hacer visible si no lo está
+                            if not btn_info['visible']:
+                                print("  ⚠ Botón no visible, intentando hacerlo visible...")
+                                self.driver.execute_script("arguments[0].style.display = 'block'; arguments[0].style.visibility = 'visible';", btn)
+                                time.sleep(1)
+                            
+                            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", btn)
+                            time.sleep(1)
+                            
+                            # Intentar clic normal primero
+                            try:
+                                btn.click()
+                                print("  ✓ Clic realizado con método normal")
+                            except:
+                                print("  ⚠ Clic normal falló, intentando con JavaScript...")
+                                self.driver.execute_script("arguments[0].click();", btn)
+                                print("  ✓ Clic realizado con JavaScript")
+                            
+                            time.sleep(4)
+                            print("  ✓ Clic en 'Complete Assessment' realizado exitosamente")
+                            if window_count_after > window_count_before:
+                                self.driver.switch_to.window(original_window)
+                            return True
+                        except Exception as e:
+                            print(f"  ⚠ Error al hacer clic en botón: {str(e)}")
+                            continue
+                
+            except Exception as e:
+                print(f"  ⚠ Error buscando botones: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 pass
             
             print("  ⚠ No se encontró el botón 'Complete Assessment' en ningún lugar")

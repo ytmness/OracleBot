@@ -106,19 +106,84 @@ class LoginHandler:
         """Hace clic en el enlace de Student Hub Sign In"""
         try:
             print("Haciendo clic en Student Hub Sign In...")
-            student_signin = self.wait.until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.STUDENT_SIGNIN_REDIRECTION))
-            )
+            
+            # Intentar múltiples métodos para encontrar y hacer clic en el elemento
+            student_signin = None
+            
+            # Método 1: Esperar a que sea clickeable
+            try:
+                student_signin = self.wait.until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, self.selectors.STUDENT_SIGNIN_REDIRECTION))
+                )
+            except:
+                # Método 2: Buscar por presencia primero
+                try:
+                    student_signin = self.wait.until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR, self.selectors.STUDENT_SIGNIN_REDIRECTION))
+                    )
+                except:
+                    # Método 3: Buscar por XPath alternativo
+                    try:
+                        student_signin = self.wait.until(
+                            EC.presence_of_element_located((By.XPATH, self.selectors.STUDENT_SIGNIN_REDIRECTION_XPATH))
+                        )
+                    except:
+                        raise Exception("No se pudo encontrar el enlace de Student Hub Sign In")
+            
+            # Quitar cualquier overlay que pueda estar bloqueando
+            try:
+                overlays = self.driver.find_elements(By.CSS_SELECTOR, "div.ui-widget-overlay, div.modal-backdrop, div[class*='overlay']")
+                for overlay in overlays:
+                    is_visible = self.driver.execute_script(
+                        "return arguments[0].offsetParent !== null && "
+                        "window.getComputedStyle(arguments[0]).display !== 'none';",
+                        overlay
+                    )
+                    if is_visible:
+                        self.driver.execute_script("arguments[0].style.display = 'none';", overlay)
+            except:
+                pass
             
             # Scroll al elemento antes de hacer clic
             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", student_signin)
-            time.sleep(0.3)
+            time.sleep(0.5)
             
             # Guardar la ventana actual antes de hacer clic
             original_window = self.driver.current_window_handle
             window_count_before = len(self.driver.window_handles)
             
-            student_signin.click()
+            # Intentar múltiples métodos de clic
+            clicked = False
+            try:
+                student_signin.click()
+                clicked = True
+            except Exception as e1:
+                print(f"  ⚠ Clic normal falló: {str(e1)[:100]}, intentando con JavaScript...")
+                try:
+                    # Método 2: JavaScript click
+                    self.driver.execute_script("arguments[0].click();", student_signin)
+                    clicked = True
+                except Exception as e2:
+                    print(f"  ⚠ Clic JavaScript falló: {str(e2)[:100]}, intentando con eventos...")
+                    try:
+                        # Método 3: Disparar eventos manualmente
+                        self.driver.execute_script("""
+                            var elem = arguments[0];
+                            elem.focus();
+                            var evt = new MouseEvent('click', {
+                                bubbles: true,
+                                cancelable: true,
+                                view: window,
+                                button: 0
+                            });
+                            elem.dispatchEvent(evt);
+                        """, student_signin)
+                        clicked = True
+                    except Exception as e3:
+                        print(f"  ⚠ Disparo de evento falló: {str(e3)[:100]}")
+            
+            if not clicked:
+                raise Exception("No se pudo hacer clic en el enlace de Student Hub Sign In con ningún método")
             
             # Esperar a que se abra una nueva ventana o cambie la URL
             print("Esperando a que cargue la página de login...")

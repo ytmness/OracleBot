@@ -1272,6 +1272,16 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             original_window = self.driver.current_window_handle
             window_count_before = len(self.driver.window_handles)
             
+            # Verificar URL actual para ver si estamos en página de resultados
+            current_url = self.driver.current_url
+            print(f"  🔍 URL actual al buscar botón: {current_url[:100]}...")
+            
+            # Si estamos en página de resultados (p=63000:190), esperar más tiempo
+            is_results_page = ':190:' in current_url or 'P190' in current_url
+            if is_results_page:
+                print("  📋 Detectada página de resultados, esperando carga completa...")
+                time.sleep(5)  # Esperar más tiempo en página de resultados
+            
             # Esperar un momento para que cualquier modal/popup se abra o nueva ventana
             print("  ⏳ Esperando a que aparezca el modal/botón...")
             
@@ -1297,6 +1307,13 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                         break
                 except:
                     pass
+                
+                # Verificar si la URL cambió
+                new_url = self.driver.current_url
+                if new_url != current_url:
+                    print(f"  📋 URL cambió durante la espera: {new_url[:100]}...")
+                    current_url = new_url
+                    time.sleep(2)  # Esperar a que cargue la nueva página
             
             window_count_after = len(self.driver.window_handles)
             if window_count_after > window_count_before:

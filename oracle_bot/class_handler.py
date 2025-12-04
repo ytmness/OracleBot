@@ -2157,12 +2157,20 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                     status = "✓" if choice['is_selected'] else "○"
                     print(f"    {status} {i}. {choice['text'][:80]}...")
                 
-                # Obtener respuesta(s) de OpenAI
-                answer_indices = self.get_answer_from_openai(question_data)
-                
-                # Debug: mostrar qué respuestas se van a seleccionar
-                print(f"  🔍 Respuestas a seleccionar: {answer_indices}")
-                
+                # Verificar si la pregunta ya está respondida
+                answered_choices = [c for c in question_data['choices'] if c['is_selected']]
+                if answered_choices:
+                    print(f"  ℹ Pregunta ya respondida ({len(answered_choices)} opción(es) seleccionada(s))")
+                    print(f"  ✓ Avanzando sin responder de nuevo...")
+                    answer_selected = True  # Marcar como respondida para avanzar
+                    questions_answered += 1
+                else:
+                    # Obtener respuesta(s) de OpenAI solo si no está respondida
+                    answer_indices = self.get_answer_from_openai(question_data)
+                    
+                    # Debug: mostrar qué respuestas se van a seleccionar
+                    print(f"  🔍 Respuestas a seleccionar: {answer_indices}")
+                    
                     # Seleccionar la(s) respuesta(s)
                     answer_selected = False
                     if question_data.get('allows_multiple', False):

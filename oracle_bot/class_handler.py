@@ -1268,31 +1268,100 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             True si encontró y clickeó el botón, False en caso contrario
         """
         try:
-            # Esperar un momento para que cualquier modal/popup se abra
-            time.sleep(2)
+            # Verificar si se abrió una nueva ventana/pestaña (como en el login)
+            original_window = self.driver.current_window_handle
+            window_count_before = len(self.driver.window_handles)
+            
+            # Esperar un momento para que cualquier modal/popup se abra o nueva ventana
+            time.sleep(3)
+            
+            window_count_after = len(self.driver.window_handles)
+            if window_count_after > window_count_before:
+                print(f"  📋 Se detectó nueva ventana/pestaña ({window_count_after} ventanas)")
+                # Cambiar a la nueva ventana
+                for window_handle in self.driver.window_handles:
+                    if window_handle != original_window:
+                        self.driver.switch_to.window(window_handle)
+                        print(f"  ✓ Cambiado a nueva ventana - URL: {self.driver.current_url}")
+                        break
+            
+            # Usar WebDriverWait para esperar que aparezca el botón o modal
+            from selenium.webdriver.support.ui import WebDriverWait
+            from selenium.webdriver.support import expected_conditions as EC
+            wait_modal = WebDriverWait(self.driver, 10)
+            
+            # Intentar esperar a que aparezca el botón directamente
+            try:
+                complete_button = wait_modal.until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']"))
+                )
+                if complete_button.is_displayed():
+                    print("  ✓ Botón 'Complete Assessment' encontrado (espera explícita)")
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                    time.sleep(0.8)
+                    complete_button.click()
+                    time.sleep(4)
+                    print("  ✓ Clic en 'Complete Assessment' realizado")
+                    # Si cambiamos de ventana, volver a la original
+                    if window_count_after > window_count_before:
+                        self.driver.switch_to.window(original_window)
+                    return True
+            except:
+                pass
+            
+            # Intentar esperar a que aparezca un modal/dialog
+            try:
+                modal = wait_modal.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 
+                        "div[role='dialog'], div.ui-dialog, div.modal, div.popup, div.t-Dialog, div[class*='Dialog'], div[class*='Modal']"))
+                )
+                if modal.is_displayed():
+                    print("  ✓ Modal/dialog detectado, buscando botón dentro...")
+            except:
+                pass
             
             # Método 0: Buscar en div.t-ButtonRegion-buttons (como en el HTML proporcionado)
             try:
                 button_regions = self.driver.find_elements(By.CSS_SELECTOR, "div.t-ButtonRegion-buttons")
                 print(f"  📋 Encontrados {len(button_regions)} div.t-ButtonRegion-buttons")
-                for region in button_regions:
+                for idx, region in enumerate(button_regions):
                     try:
-                        if region.is_displayed():
+                        # Verificar si está visible usando JavaScript (más confiable)
+                        is_visible = self.driver.execute_script(
+                            "return arguments[0].offsetParent !== null && "
+                            "window.getComputedStyle(arguments[0]).display !== 'none' && "
+                            "window.getComputedStyle(arguments[0]).visibility !== 'hidden';",
+                            region
+                        )
+                        
+                        if is_visible:
+                            print(f"  📋 t-ButtonRegion {idx+1} está visible")
                             # Buscar el botón dentro del div
                             complete_button = region.find_element(By.CSS_SELECTOR, 
                                 "button[data-otel-label='CONFIRMCOMPLETE']")
                             
-                            if complete_button and complete_button.is_displayed():
-                                print("  ✓ Encontrado botón 'Complete Assessment' en t-ButtonRegion")
-                                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                                time.sleep(0.8)
-                                complete_button.click()
-                                time.sleep(4)
-                                print("  ✓ Clic en 'Complete Assessment' realizado")
-                                return True
-                    except:
+                            if complete_button:
+                                button_visible = self.driver.execute_script(
+                                    "return arguments[0].offsetParent !== null && "
+                                    "window.getComputedStyle(arguments[0]).display !== 'none';",
+                                    complete_button
+                                )
+                                if button_visible:
+                                    print("  ✓ Encontrado botón 'Complete Assessment' en t-ButtonRegion")
+                                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                                    time.sleep(0.8)
+                                    complete_button.click()
+                                    time.sleep(4)
+                                    print("  ✓ Clic en 'Complete Assessment' realizado")
+                                    # Si cambiamos de ventana, volver a la original
+                                    if window_count_after > window_count_before:
+                                        self.driver.switch_to.window(original_window)
+                                    return True
+                    except Exception as e:
+                        print(f"  ⚠ Error en t-ButtonRegion {idx+1}: {str(e)}")
                         continue
-            except:
+            except Exception as e:
+                print(f"  ⚠ Error buscando t-ButtonRegion: {str(e)}")
                 pass
             
             # Método 1: Buscar modales/popups primero y cambiar el contexto si es necesario
@@ -1396,13 +1465,54 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             except:
                 pass
             
+            # Debug: mostrar información sobre la página actual
+            print("  🔍 Información de depuración:")
+            print(f"    - URL actual: {self.driver.current_url}")
+            print(f"    - Ventanas abiertas: {len(self.driver.window_handles)}")
+            print(f"    - Ventana actual: {self.driver.current_window_handle}")
+            
+            # Buscar todos los botones visibles con "Complete" en el texto
+            try:
+                all_buttons = self.driver.find_elements(By.TAG_NAME, "button")
+                complete_buttons = []
+                for btn in all_buttons:
+                    try:
+                        btn_text = btn.text.lower()
+                        if "complete" in btn_text and btn.is_displayed():
+                            complete_buttons.append(btn)
+                    except:
+                        continue
+                
+                if complete_buttons:
+                    print(f"    - Encontrados {len(complete_buttons)} botón(es) con 'Complete' en el texto")
+                    for idx, btn in enumerate(complete_buttons[:3], 1):  # Mostrar primeros 3
+                        try:
+                            print(f"      Botón {idx}: texto='{btn.text[:50]}', id='{btn.get_attribute('id')}', data-otel-label='{btn.get_attribute('data-otel-label')}'")
+                        except:
+                            pass
+            except:
+                pass
+            
             print("  ⚠ No se encontró el botón 'Complete Assessment' en ningún lugar")
+            
+            # Si cambiamos de ventana, volver a la original
+            if window_count_after > window_count_before:
+                self.driver.switch_to.window(original_window)
+            
             return False
             
         except Exception as e:
             print(f"  ⚠ Error al buscar botón 'Complete Assessment': {str(e)}")
             import traceback
             traceback.print_exc()
+            
+            # Si cambiamos de ventana, volver a la original
+            try:
+                if window_count_after > window_count_before:
+                    self.driver.switch_to.window(original_window)
+            except:
+                pass
+            
             return False
     
     def go_to_next_question(self) -> bool:

@@ -1309,6 +1309,25 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             except:
                 pass
             
+            # Intentar esperar a que aparezca el overlay ui-widget-overlay (jQuery UI modal)
+            try:
+                overlay = wait_modal.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "div.ui-widget-overlay"))
+                )
+                if overlay.is_displayed():
+                    print("  ✓ Overlay ui-widget-overlay detectado, buscando modal y botón dentro...")
+                    # Buscar el modal dentro del overlay o después de él
+                    try:
+                        # El modal generalmente está después del overlay en el DOM
+                        modal = self.driver.find_element(By.CSS_SELECTOR, 
+                            "div.ui-dialog, div[role='dialog'], div.t-Dialog")
+                        if modal.is_displayed():
+                            print("  ✓ Modal encontrado dentro del overlay")
+                    except:
+                        pass
+            except:
+                pass
+            
             # Intentar esperar a que aparezca un modal/dialog
             try:
                 modal = wait_modal.until(

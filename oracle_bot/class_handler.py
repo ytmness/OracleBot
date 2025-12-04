@@ -293,11 +293,14 @@ class ClassHandler:
                     print("⚠ No se pudo navegar a la página de clases")
                     return []
             
-            # Verificar que la página esté cargada
-            self.verify_classes_page_loaded()
-            
-            # Esperar un momento para que la página se estabilice
-            time.sleep(2)
+            # Verificar que la página esté cargada (solo si navegamos, no si ya estábamos ahí)
+            if self.selectors.CLASSES_PAGE_PATTERN not in current_url:
+                self.verify_classes_page_loaded()
+                # Esperar un momento para que la página se estabilice después de navegar
+                time.sleep(2)
+            else:
+                # Si ya estábamos en la página, solo esperar un momento para que se estabilice
+                time.sleep(1)
             
             # Buscar los items de las clases con timeout más corto y múltiples intentos
             class_items = []

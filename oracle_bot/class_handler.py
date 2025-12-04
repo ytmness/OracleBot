@@ -2578,14 +2578,12 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                         # p=63000:190 es la página del quiz, p=63000:192 es la página de resultados
                         if ':192:' in url_after or 'P192' in url_after:
                             print("  📋 Detectada página de resultados (p=63000:192)")
+                            print("  ✓ Quiz completado - Ya estamos en la página de resultados")
                             # Esperar a que cargue completamente la nueva página
-                            time.sleep(5)
-                            # Buscar el botón en esta nueva página
-                            complete_clicked = self.click_complete_assessment_button()
-                            
-                            if complete_clicked:
-                                print(f"\n  ✓ Quiz completado exitosamente - Total de preguntas respondidas: {questions_answered}")
-                                break
+                            time.sleep(3)
+                            # NO buscar más botones, el quiz ya está completado
+                            print(f"\n  ✓ Quiz completado exitosamente - Total de preguntas respondidas: {questions_answered}")
+                            break
                         else:
                             # Si cambió pero sigue siendo página del quiz (p=63000:190), solo continuar
                             print("  📋 URL cambió pero sigue siendo página del quiz, continuando...")

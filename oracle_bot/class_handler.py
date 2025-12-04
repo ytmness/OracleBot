@@ -1960,11 +1960,75 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                         if "Complete Assessment" in button_text:
                             print("  ✓ Encontrado botón 'Complete Assessment' en breadcrumb (por ID)")
                             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                            time.sleep(0.5)
-                            complete_button.click()
-                            time.sleep(4)
-                            print("  ✓ Clic en 'Complete Assessment' realizado")
-                            return False  # Quiz terminado
+                            time.sleep(1)
+                            
+                            # Intentar múltiples métodos de clic
+                            clicked = False
+                            
+                            # Método 1: Clic normal
+                            try:
+                                complete_button.click()
+                                clicked = True
+                                print("  ✓ Clic realizado con método normal")
+                            except Exception as e1:
+                                print(f"  ⚠ Clic normal falló: {str(e1)[:100]}")
+                                
+                                # Método 2: JavaScript click
+                                try:
+                                    self.driver.execute_script("arguments[0].click();", complete_button)
+                                    clicked = True
+                                    print("  ✓ Clic realizado con JavaScript")
+                                except Exception as e2:
+                                    print(f"  ⚠ Clic JavaScript falló: {str(e2)[:100]}")
+                                    
+                                    # Método 3: Disparar eventos manualmente
+                                    try:
+                                        self.driver.execute_script("""
+                                            var btn = arguments[0];
+                                            btn.focus();
+                                            var evt = new MouseEvent('click', {
+                                                bubbles: true,
+                                                cancelable: true,
+                                                view: window,
+                                                button: 0
+                                            });
+                                            btn.dispatchEvent(evt);
+                                        """, complete_button)
+                                        clicked = True
+                                        print("  ✓ Evento click disparado manualmente")
+                                    except Exception as e3:
+                                        print(f"  ⚠ Disparo de evento falló: {str(e3)[:100]}")
+                            
+                            if clicked:
+                                time.sleep(5)  # Esperar más tiempo después del clic
+                                
+                                # Verificar si realmente avanzó (URL cambió o aparece página de resultados)
+                                time.sleep(3)
+                                new_url = self.driver.current_url
+                                if ':192:' in new_url or 'P192' in new_url or new_url != self.driver.current_url:
+                                    print("  ✓ Página cambió después del clic, quiz completado")
+                                    return False  # Quiz terminado
+                                else:
+                                    print("  ⚠ El clic no parece haber funcionado, la página no cambió")
+                                    # Intentar una vez más con método más agresivo
+                                    try:
+                                        self.driver.execute_script("""
+                                            var btn = document.querySelector('button#quiz-submit');
+                                            if (btn) {
+                                                btn.click();
+                                                setTimeout(function() {
+                                                    if (btn.onclick) btn.onclick();
+                                                }, 100);
+                                            }
+                                        """)
+                                        time.sleep(5)
+                                    except:
+                                        pass
+                                    
+                                    return False  # Retornar False de todas formas para continuar
+                            else:
+                                print("  ⚠ No se pudo hacer clic en el botón con ningún método")
+                                return False
                     except:
                         pass
                     
@@ -1977,11 +2041,75 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                                 if "Complete Assessment" in button_text:
                                     print("  ✓ Encontrado botón 'Complete Assessment' en breadcrumb (por data-otel-label)")
                                     self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", btn)
-                                    time.sleep(0.5)
-                                    btn.click()
-                                    time.sleep(4)
-                                    print("  ✓ Clic en 'Complete Assessment' realizado")
-                                    return False  # Quiz terminado
+                                    time.sleep(1)
+                                    
+                                    # Intentar múltiples métodos de clic
+                                    clicked = False
+                                    
+                                    # Método 1: Clic normal
+                                    try:
+                                        btn.click()
+                                        clicked = True
+                                        print("  ✓ Clic realizado con método normal")
+                                    except Exception as e1:
+                                        print(f"  ⚠ Clic normal falló: {str(e1)[:100]}")
+                                        
+                                        # Método 2: JavaScript click
+                                        try:
+                                            self.driver.execute_script("arguments[0].click();", btn)
+                                            clicked = True
+                                            print("  ✓ Clic realizado con JavaScript")
+                                        except Exception as e2:
+                                            print(f"  ⚠ Clic JavaScript falló: {str(e2)[:100]}")
+                                            
+                                            # Método 3: Disparar eventos manualmente
+                                            try:
+                                                self.driver.execute_script("""
+                                                    var btn = arguments[0];
+                                                    btn.focus();
+                                                    var evt = new MouseEvent('click', {
+                                                        bubbles: true,
+                                                        cancelable: true,
+                                                        view: window,
+                                                        button: 0
+                                                    });
+                                                    btn.dispatchEvent(evt);
+                                                """, btn)
+                                                clicked = True
+                                                print("  ✓ Evento click disparado manualmente")
+                                            except Exception as e3:
+                                                print(f"  ⚠ Disparo de evento falló: {str(e3)[:100]}")
+                                    
+                                    if clicked:
+                                        time.sleep(5)  # Esperar más tiempo después del clic
+                                        
+                                        # Verificar si realmente avanzó
+                                        time.sleep(3)
+                                        new_url = self.driver.current_url
+                                        if ':192:' in new_url or 'P192' in new_url:
+                                            print("  ✓ Página cambió a resultados después del clic")
+                                            return False  # Quiz terminado
+                                        else:
+                                            print("  ⚠ El clic no parece haber funcionado, intentando método más agresivo...")
+                                            # Intentar una vez más con método más agresivo
+                                            try:
+                                                self.driver.execute_script("""
+                                                    var btn = document.querySelector('button[data-otel-label=\"SUBMIT\"]');
+                                                    if (btn && btn.textContent.includes('Complete Assessment')) {
+                                                        btn.click();
+                                                        setTimeout(function() {
+                                                            if (btn.onclick) btn.onclick();
+                                                        }, 100);
+                                                    }
+                                                """)
+                                                time.sleep(5)
+                                            except:
+                                                pass
+                                            
+                                            return False  # Retornar False de todas formas
+                                    else:
+                                        print("  ⚠ No se pudo hacer clic en el botón con ningún método")
+                                        return False
                             except:
                                 continue
                     except:

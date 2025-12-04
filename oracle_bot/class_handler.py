@@ -1274,7 +1274,29 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             
             # Esperar un momento para que cualquier modal/popup se abra o nueva ventana
             print("  ⏳ Esperando a que aparezca el modal/botón...")
-            time.sleep(4)
+            
+            # Esperar múltiples veces con verificaciones intermedias
+            for wait_attempt in range(5):
+                time.sleep(2)
+                print(f"  ⏳ Espera {wait_attempt + 1}/5...")
+                
+                # Verificar si el botón ya está disponible
+                try:
+                    complete_button = self.driver.find_element(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
+                    if complete_button:
+                        print("  ✓ Botón encontrado durante la espera")
+                        break
+                except:
+                    pass
+                
+                # Verificar si el overlay está visible
+                try:
+                    overlay = self.driver.find_element(By.CSS_SELECTOR, "div.ui-widget-overlay")
+                    if overlay.is_displayed():
+                        print("  ✓ Overlay detectado durante la espera")
+                        break
+                except:
+                    pass
             
             window_count_after = len(self.driver.window_handles)
             if window_count_after > window_count_before:
@@ -1713,31 +1735,66 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                             btn = btn_info['element']
                             print(f"  🎯 Intentando hacer clic en botón: id='{btn_info['id']}', texto='{btn_info['text']}'")
                             
-                            # Intentar hacer visible si no lo está
-                            if not btn_info['visible']:
-                                print("  ⚠ Botón no visible, intentando hacerlo visible...")
-                                self.driver.execute_script("arguments[0].style.display = 'block'; arguments[0].style.visibility = 'visible';", btn)
-                                time.sleep(1)
+                            # Forzar visibilidad y habilitación del botón
+                            print("  🔧 Forzando visibilidad del botón...")
+                            self.driver.execute_script("""
+                                arguments[0].style.display = 'block';
+                                arguments[0].style.visibility = 'visible';
+                                arguments[0].style.opacity = '1';
+                                arguments[0].style.zIndex = '9999';
+                                arguments[0].disabled = false;
+                                arguments[0].removeAttribute('disabled');
+                            """, btn)
+                            time.sleep(1)
                             
+                            # Scroll al botón
                             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", btn)
                             time.sleep(1)
                             
-                            # Intentar clic normal primero
+                            # Múltiples intentos de clic
+                            clicked = False
+                            
+                            # Intento 1: Clic normal
                             try:
                                 btn.click()
                                 print("  ✓ Clic realizado con método normal")
-                            except:
-                                print("  ⚠ Clic normal falló, intentando con JavaScript...")
-                                self.driver.execute_script("arguments[0].click();", btn)
-                                print("  ✓ Clic realizado con JavaScript")
+                                clicked = True
+                            except Exception as e1:
+                                print(f"  ⚠ Clic normal falló: {str(e1)}")
+                                
+                                # Intento 2: Clic con JavaScript
+                                try:
+                                    self.driver.execute_script("arguments[0].click();", btn)
+                                    print("  ✓ Clic realizado con JavaScript")
+                                    clicked = True
+                                except Exception as e2:
+                                    print(f"  ⚠ Clic JavaScript falló: {str(e2)}")
+                                    
+                                    # Intento 3: Disparar eventos manualmente
+                                    try:
+                                        self.driver.execute_script("""
+                                            var evt = new MouseEvent('click', {
+                                                bubbles: true,
+                                                cancelable: true,
+                                                view: window
+                                            });
+                                            arguments[0].dispatchEvent(evt);
+                                        """, btn)
+                                        print("  ✓ Evento click disparado manualmente")
+                                        clicked = True
+                                    except Exception as e3:
+                                        print(f"  ⚠ Disparo de evento falló: {str(e3)}")
                             
-                            time.sleep(4)
-                            print("  ✓ Clic en 'Complete Assessment' realizado exitosamente")
-                            if window_count_after > window_count_before:
-                                self.driver.switch_to.window(original_window)
-                            return True
+                            if clicked:
+                                time.sleep(4)
+                                print("  ✓ Clic en 'Complete Assessment' realizado exitosamente")
+                                if window_count_after > window_count_before:
+                                    self.driver.switch_to.window(original_window)
+                                return True
                         except Exception as e:
                             print(f"  ⚠ Error al hacer clic en botón: {str(e)}")
+                            import traceback
+                            traceback.print_exc()
                             continue
                 
             except Exception as e:

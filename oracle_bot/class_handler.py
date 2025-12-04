@@ -1322,10 +1322,10 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             current_url = self.driver.current_url
             print(f"  🔍 URL actual al buscar botón: {current_url[:100]}...")
             
-            # Si estamos en página de resultados (p=63000:190), esperar más tiempo
-            is_results_page = ':190:' in current_url or 'P190' in current_url
+            # Si estamos en página de resultados (p=63000:192, NO p=63000:190 que es el quiz), esperar más tiempo
+            is_results_page = ':192:' in current_url or 'P192' in current_url
             if is_results_page:
-                print("  📋 Detectada página de resultados, esperando carga completa...")
+                print("  📋 Detectada página de resultados (p=63000:192), esperando carga completa...")
                 time.sleep(5)  # Esperar más tiempo en página de resultados
             
             # Esperar un momento para que cualquier modal/popup se abra o nueva ventana

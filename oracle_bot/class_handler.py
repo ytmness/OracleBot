@@ -3,6 +3,7 @@ Manejador de clases para Oracle Academy
 """
 import time
 import os
+import re
 from typing import List, Dict, Optional
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -1931,7 +1932,6 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                 question_heading = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_HEADING)
                 heading_text = question_heading.text.strip()
                 # Verificar si dice "Question X of X" donde ambos números son iguales
-                import re
                 match = re.search(r'Question\s+(\d+)\s+of\s+(\d+)', heading_text, re.IGNORECASE)
                 if match:
                     current_q = int(match.group(1))
@@ -2038,31 +2038,34 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                 except:
                     pass
             
-            # Método 3: Buscar por texto "Submit Answer"
-            try:
-                submit_button = self.driver.find_element(By.XPATH, self.selectors.SUBMIT_QUIZ_BUTTON_XPATH)
-                print("  Enviando respuesta del quiz (por texto)...")
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", submit_button)
-                time.sleep(0.3)
-                submit_button.click()
-                time.sleep(3)
-                
-                # Verificar si hay más preguntas
+            # Método 3: Buscar por texto "Submit Answer" (solo si NO es la última pregunta o si no encontramos Complete Assessment)
+            if not is_last_question:
                 try:
-                    time.sleep(2)
-                    question_elem = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_TEXT)
-                    print("  Continuando con siguiente pregunta...")
-                    return True
+                    submit_button = self.driver.find_element(By.XPATH, self.selectors.SUBMIT_QUIZ_BUTTON_XPATH)
+                    print("  Enviando respuesta del quiz (por texto)...")
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", submit_button)
+                    time.sleep(0.3)
+                    submit_button.click()
+                    time.sleep(3)
+                    
+                    # Verificar si hay más preguntas
+                    try:
+                        time.sleep(2)
+                        question_elem = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_TEXT)
+                        print("  Continuando con siguiente pregunta...")
+                        return True
+                    except:
+                        print("  ✓ Quiz completado")
+                        return False
                 except:
-                    print("  ✓ Quiz completado")
-                    return False
-            except:
-                pass
+                    pass
             
-            # Método 4: Buscar botón "Complete Assessment" (al final del quiz)
-            complete_clicked = self.click_complete_assessment_button()
-            if complete_clicked:
-                return False  # Quiz terminado
+            # Método 4: Si es la última pregunta y no encontramos Complete Assessment antes, buscar ahora
+            if is_last_question:
+                print("  🔍 Última pregunta: buscando botón 'Complete Assessment' como último recurso...")
+                complete_clicked = self.click_complete_assessment_button()
+                if complete_clicked:
+                    return False  # Quiz terminado
             
             print("  ⚠ No se encontró botón Next/Submit/Complete")
             return False

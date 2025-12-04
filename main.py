@@ -395,12 +395,9 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler, first_
                                     # Continuar automáticamente buscando la siguiente sección pendiente
                                     continue_automatically(class_handler, class_choice - 1, None)
                                     break  # Salir del loop manual, ya que continue_automatically maneja el resto
-                                        
-                                        # Avanzar al siguiente índice
-                                        i += 1
-                                    else:
-                                        print(f"⚠ No se pudo seleccionar la sección {i+1}, intentando continuar...")
-                                        i += 1
+                                else:
+                                    print(f"⚠ No se pudo seleccionar la sección {i+1}, intentando continuar...")
+                                    i += 1
                                     
                             except ValueError:
                                 print("⚠ Por favor ingrese un número válido")

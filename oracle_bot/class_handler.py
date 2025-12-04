@@ -570,16 +570,59 @@ class ClassHandler:
                         print(f"  ⏭ Saltando sección no válida: {title}")
                         continue
                     
-                    # Verificar si está completada (buscar indicador 100% o clase is-complete)
+                    # Verificar si está completada (buscar múltiples indicadores)
                     is_complete = False
+                    
+                    # Método 1: Buscar indicador "100%" en el texto del elemento o sus hijos
                     try:
-                        # Buscar en el elemento padre si tiene clase is-complete
-                        parent = item.find_element(By.XPATH, "./..")
-                        parent_class = parent.get_attribute("class") or ""
-                        if "is-complete" in parent_class:
+                        item_text = item.text.lower()
+                        if "100%" in item_text:
                             is_complete = True
                     except:
                         pass
+                    
+                    # Método 2: Buscar badge de completado (div con 100%)
+                    if not is_complete:
+                        try:
+                            # Buscar en el elemento y sus hijos cualquier div con "100%"
+                            badge_elements = item.find_elements(By.XPATH, ".//div[contains(text(), '100%')]")
+                            if badge_elements:
+                                is_complete = True
+                        except:
+                            pass
+                    
+                    # Método 3: Buscar clase "is-complete" en el elemento padre
+                    if not is_complete:
+                        try:
+                            parent = item.find_element(By.XPATH, "./..")
+                            parent_class = parent.get_attribute("class") or ""
+                            if "is-complete" in parent_class.lower():
+                                is_complete = True
+                        except:
+                            pass
+                    
+                    # Método 4: Buscar badge o indicador visual de completado
+                    if not is_complete:
+                        try:
+                            # Buscar badge con clase que indique completado
+                            badges = item.find_elements(By.CSS_SELECTOR, "span.t-MediaList-badge, div.t-MediaList-badgeWrap")
+                            for badge in badges:
+                                badge_text = badge.text.strip().lower()
+                                badge_class = badge.get_attribute("class") or ""
+                                if "100%" in badge_text or "complete" in badge_class.lower():
+                                    is_complete = True
+                                    break
+                        except:
+                            pass
+                    
+                    # Método 5: Buscar en el elemento mismo si tiene clase de completado
+                    if not is_complete:
+                        try:
+                            item_class = item.get_attribute("class") or ""
+                            if "complete" in item_class.lower() and "incomplete" not in item_class.lower():
+                                is_complete = True
+                        except:
+                            pass
                     
                     section_info = SectionInfo(valid_index, title, item, is_complete)
                     sections.append(section_info)
@@ -616,90 +659,75 @@ class ClassHandler:
             # Esperar un momento para que la página se estabilice
             time.sleep(1)
             
-            # Buscar la sección nuevamente por su título para evitar elementos stale
-            # Esto es importante porque después de navegar, los elementos pueden volverse obsoletos
-            try:
-                # Buscar todas las secciones disponibles
-                section_items = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.SECTION_ITEM)
-                
-                if not section_items:
-                    print("⚠ No se encontraron elementos de sección en la página")
-                    return False
-                
-                # Buscar la sección correcta por su título
-                target_section = None
-                for item in section_items:
-                    try:
-                        title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
-                        item_title = title_elem.text.strip()
-                        
-                        # Comparar títulos (exacto o parcial)
-                        if item_title == section_info.title or section_info.title in item_title:
-                            target_section = item
-                            print(f"  ✓ Sección encontrada: {item_title}")
-                            break
-                    except:
-                        continue
-                
-                if not target_section:
-                    print(f"  ✗ No se pudo encontrar la sección '{section_info.title}' en la página")
-                    print(f"  Secciones disponibles en la página:")
-                    for i, item in enumerate(section_items[:5], 1):  # Mostrar primeras 5
-                        try:
-                            title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
-                            print(f"    {i}. {title_elem.text.strip()}")
-                        except:
-                            pass
-                    return False
-                
-                # Scroll al elemento encontrado
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", target_section)
-                time.sleep(0.5)
-                
-                # Hacer clic en el elemento encontrado
-                target_section.click()
-                
-                # Esperar a que cargue la página de la sección
-                print("Esperando a que cargue la página de la sección...")
-                time.sleep(3)
-                
-                # Verificar que cambió la URL o que cargó el contenido
-                new_url = self.driver.current_url
-                print(f"  URL después de seleccionar: {new_url}")
-                
-                print("✓ Sección seleccionada correctamente")
-                return True
-                
-            except Exception as e:
-                print(f"  ⚠ Error al buscar sección por título: {str(e)}")
-                # Intentar método alternativo: usar el índice
-                try:
-                    section_items = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.SECTION_ITEM)
-                    if section_info.index <= len(section_items):
-                        # Filtrar secciones inválidas para obtener el índice correcto
-                        invalid_sections = ["sections in course", "level of difficulty", "status", "course resources"]
-                        valid_sections = []
-                        for item in section_items:
-                            try:
-                                title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
-                                title = title_elem.text.strip().lower()
-                                if not any(invalid in title for invalid in invalid_sections):
-                                    valid_sections.append(item)
-                            except:
-                                continue
-                        
-                        if section_info.index <= len(valid_sections):
-                            target_section = valid_sections[section_info.index - 1]
-                            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", target_section)
-                            time.sleep(0.5)
-                            target_section.click()
-                            time.sleep(3)
-                            print("✓ Sección seleccionada por índice")
-                            return True
-                except:
-                    pass
-                
+            # Buscar todas las secciones disponibles y filtrar las inválidas
+            section_items = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.SECTION_ITEM)
+            
+            if not section_items:
+                print("⚠ No se encontraron elementos de sección en la página")
                 return False
+            
+            # Filtrar secciones inválidas para obtener solo las válidas
+            invalid_sections = ["sections in course", "level of difficulty", "status", "course resources"]
+            valid_sections = []
+            valid_titles = []
+            
+            for item in section_items:
+                try:
+                    title_elem = item.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
+                    title = title_elem.text.strip()
+                    title_lower = title.lower()
+                    
+                    # Verificar si es una sección inválida
+                    is_invalid = any(invalid in title_lower for invalid in invalid_sections)
+                    
+                    if not is_invalid:
+                        valid_sections.append(item)
+                        valid_titles.append(title)
+                except:
+                    continue
+            
+            print(f"  📋 Secciones válidas encontradas: {len(valid_sections)}")
+            for idx, title in enumerate(valid_titles, 1):
+                marker = ">>>" if idx == section_info.index else "   "
+                print(f"    {marker} {idx}. {title}")
+            
+            # Verificar que el índice es válido
+            if section_info.index < 1 or section_info.index > len(valid_sections):
+                print(f"  ✗ Índice {section_info.index} fuera de rango (rango válido: 1-{len(valid_sections)})")
+                return False
+            
+            # Usar el índice válido para seleccionar la sección correcta
+            target_section = valid_sections[section_info.index - 1]
+            target_title = valid_titles[section_info.index - 1]
+            
+            print(f"  ✓ Seleccionando sección {section_info.index}: {target_title}")
+            
+            # Scroll al elemento encontrado
+            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", target_section)
+            time.sleep(0.5)
+            
+            # Verificar que el título coincide (doble verificación)
+            try:
+                title_elem = target_section.find_element(By.CSS_SELECTOR, self.selectors.SECTION_TITLE)
+                actual_title = title_elem.text.strip()
+                if actual_title != target_title:
+                    print(f"  ⚠ Advertencia: Título esperado '{target_title}' pero encontrado '{actual_title}'")
+            except:
+                pass
+            
+            # Hacer clic en el elemento encontrado
+            target_section.click()
+            
+            # Esperar a que cargue la página de la sección
+            print("Esperando a que cargue la página de la sección...")
+            time.sleep(3)
+            
+            # Verificar que cambió la URL o que cargó el contenido
+            new_url = self.driver.current_url
+            print(f"  URL después de seleccionar: {new_url}")
+            
+            print("✓ Sección seleccionada correctamente")
+            return True
             
         except Exception as e:
             print(f"✗ Error al seleccionar la sección: {str(e)}")
@@ -1164,30 +1192,67 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             )
             
             answer_text = response.choices[0].message.content.strip()
+            print(f"  📝 Respuesta cruda de OpenAI: '{answer_text}'")
             
             # Extraer los números de las respuestas
             try:
-                # Intentar parsear múltiples números separados por comas
-                if ',' in answer_text:
-                    answer_nums = [int(x.strip()) for x in answer_text.split(',')]
-                else:
-                    # Solo un número
-                    answer_nums = [int(answer_text.split()[0])]
+                import re
+                # Buscar todos los números en la respuesta usando regex
+                # Esto maneja casos como "1", "1, 3, 5", "opción 2", "la respuesta es 3", etc.
+                numbers = re.findall(r'\b(\d+)\b', answer_text)
                 
-                # Validar que todos los números estén en rango
-                valid_answers = [num for num in answer_nums if 1 <= num <= len(question_data['choices'])]
-                
-                if valid_answers:
-                    if allows_multiple:
-                        print(f"  ✓ OpenAI sugiere opciones: {', '.join(map(str, valid_answers))}")
-                    else:
-                        print(f"  ✓ OpenAI sugiere opción {valid_answers[0]}")
-                    return valid_answers
-                else:
-                    print(f"  ⚠ Números de opción fuera de rango: {answer_nums}")
+                if not numbers:
+                    print(f"  ⚠ No se encontraron números en la respuesta: '{answer_text}'")
                     return [1]
-            except:
-                print(f"  ⚠ No se pudo parsear la respuesta de OpenAI: {answer_text}")
+                
+                # Convertir a enteros y filtrar por rango válido
+                answer_nums = []
+                for num_str in numbers:
+                    try:
+                        num = int(num_str)
+                        if 1 <= num <= len(question_data['choices']):
+                            answer_nums.append(num)
+                        else:
+                            print(f"  ⚠ Número fuera de rango ignorado: {num} (rango válido: 1-{len(question_data['choices'])})")
+                    except ValueError:
+                        continue
+                
+                # Si no hay números válidos, usar el primero encontrado aunque esté fuera de rango
+                if not answer_nums and numbers:
+                    try:
+                        first_num = int(numbers[0])
+                        if first_num > 0:
+                            # Ajustar al rango válido si es necesario
+                            adjusted_num = min(max(1, first_num), len(question_data['choices']))
+                            answer_nums = [adjusted_num]
+                            print(f"  ⚠ Número ajustado al rango válido: {first_num} -> {adjusted_num}")
+                    except:
+                        pass
+                
+                # Si aún no hay números válidos, usar fallback
+                if not answer_nums:
+                    print(f"  ⚠ No se pudieron extraer números válidos de: '{answer_text}'")
+                    return [1]
+                
+                # Eliminar duplicados manteniendo el orden
+                unique_answers = []
+                for num in answer_nums:
+                    if num not in unique_answers:
+                        unique_answers.append(num)
+                
+                if unique_answers:
+                    if allows_multiple:
+                        print(f"  ✓ OpenAI sugiere opciones: {', '.join(map(str, unique_answers))}")
+                    else:
+                        print(f"  ✓ OpenAI sugiere opción {unique_answers[0]}")
+                    return unique_answers
+                else:
+                    print(f"  ⚠ No se encontraron respuestas válidas después del procesamiento")
+                    return [1]
+            except Exception as e:
+                print(f"  ⚠ Error al parsear la respuesta de OpenAI: '{answer_text}' - Error: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 return [1]
                 
         except Exception as e:
@@ -1355,35 +1420,42 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                 # Obtener respuesta(s) de OpenAI
                 answer_indices = self.get_answer_from_openai(question_data)
                 
+                # Debug: mostrar qué respuestas se van a seleccionar
+                print(f"  🔍 Respuestas a seleccionar: {answer_indices}")
+                
                 # Seleccionar la(s) respuesta(s)
                 answer_selected = False
                 if question_data.get('allows_multiple', False):
                     # Seleccionar múltiples respuestas
+                    print(f"  📌 Modo: Múltiples respuestas permitidas")
                     if self.select_multiple_answers(answer_indices):
                         questions_answered += 1
-                        print(f"  ✓ Pregunta {questions_answered} respondida (múltiples opciones)")
+                        print(f"  ✓ Pregunta {questions_answered} respondida (múltiples opciones: {answer_indices})")
                         answer_selected = True
                     else:
-                        print("  ⚠ No se pudieron seleccionar las respuestas múltiples")
+                        print(f"  ⚠ No se pudieron seleccionar las respuestas múltiples: {answer_indices}")
                         consecutive_errors += 1
                         if consecutive_errors >= max_consecutive_errors:
                             break
                         continue
                 else:
                     # Seleccionar una sola respuesta
+                    print(f"  📌 Modo: Una sola respuesta permitida")
                     if len(answer_indices) > 0:
-                        if self.select_answer(answer_indices[0], allow_multiple=False):
+                        selected_index = answer_indices[0]
+                        print(f"  🎯 Seleccionando opción {selected_index} de {len(question_data['choices'])} disponibles")
+                        if self.select_answer(selected_index, allow_multiple=False):
                             questions_answered += 1
-                            print(f"  ✓ Pregunta {questions_answered} respondida")
+                            print(f"  ✓ Pregunta {questions_answered} respondida (opción {selected_index})")
                             answer_selected = True
                         else:
-                            print("  ⚠ No se pudo seleccionar la respuesta")
+                            print(f"  ⚠ No se pudo seleccionar la respuesta {selected_index}")
                             consecutive_errors += 1
                             if consecutive_errors >= max_consecutive_errors:
                                 break
                             continue
                     else:
-                        print("  ⚠ No se obtuvo respuesta de OpenAI")
+                        print("  ⚠ No se obtuvo respuesta de OpenAI (lista vacía)")
                         consecutive_errors += 1
                         if consecutive_errors >= max_consecutive_errors:
                             break

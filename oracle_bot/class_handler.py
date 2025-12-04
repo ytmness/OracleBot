@@ -2163,43 +2163,43 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                 # Debug: mostrar qué respuestas se van a seleccionar
                 print(f"  🔍 Respuestas a seleccionar: {answer_indices}")
                 
-                # Seleccionar la(s) respuesta(s)
-                answer_selected = False
-                if question_data.get('allows_multiple', False):
-                    # Seleccionar múltiples respuestas
-                    print(f"  📌 Modo: Múltiples respuestas permitidas")
-                    if self.select_multiple_answers(answer_indices):
-                        questions_answered += 1
-                        print(f"  ✓ Pregunta {questions_answered} respondida (múltiples opciones: {answer_indices})")
-                        answer_selected = True
-                    else:
-                        print(f"  ⚠ No se pudieron seleccionar las respuestas múltiples: {answer_indices}")
-                        consecutive_errors += 1
-                        if consecutive_errors >= max_consecutive_errors:
-                            break
-                        continue
-                else:
-                    # Seleccionar una sola respuesta
-                    print(f"  📌 Modo: Una sola respuesta permitida")
-                    if len(answer_indices) > 0:
-                        selected_index = answer_indices[0]
-                        print(f"  🎯 Seleccionando opción {selected_index} de {len(question_data['choices'])} disponibles")
-                        if self.select_answer(selected_index, allow_multiple=False):
+                    # Seleccionar la(s) respuesta(s)
+                    answer_selected = False
+                    if question_data.get('allows_multiple', False):
+                        # Seleccionar múltiples respuestas
+                        print(f"  📌 Modo: Múltiples respuestas permitidas")
+                        if self.select_multiple_answers(answer_indices):
                             questions_answered += 1
-                            print(f"  ✓ Pregunta {questions_answered} respondida (opción {selected_index})")
+                            print(f"  ✓ Pregunta {questions_answered} respondida (múltiples opciones: {answer_indices})")
                             answer_selected = True
                         else:
-                            print(f"  ⚠ No se pudo seleccionar la respuesta {selected_index}")
+                            print(f"  ⚠ No se pudieron seleccionar las respuestas múltiples: {answer_indices}")
                             consecutive_errors += 1
                             if consecutive_errors >= max_consecutive_errors:
                                 break
                             continue
                     else:
-                        print("  ⚠ No se obtuvo respuesta de OpenAI (lista vacía)")
-                        consecutive_errors += 1
-                        if consecutive_errors >= max_consecutive_errors:
-                            break
-                        continue
+                        # Seleccionar una sola respuesta
+                        print(f"  📌 Modo: Una sola respuesta permitida")
+                        if len(answer_indices) > 0:
+                            selected_index = answer_indices[0]
+                            print(f"  🎯 Seleccionando opción {selected_index} de {len(question_data['choices'])} disponibles")
+                            if self.select_answer(selected_index, allow_multiple=False):
+                                questions_answered += 1
+                                print(f"  ✓ Pregunta {questions_answered} respondida (opción {selected_index})")
+                                answer_selected = True
+                            else:
+                                print(f"  ⚠ No se pudo seleccionar la respuesta {selected_index}")
+                                consecutive_errors += 1
+                                if consecutive_errors >= max_consecutive_errors:
+                                    break
+                                continue
+                        else:
+                            print("  ⚠ No se obtuvo respuesta de OpenAI (lista vacía)")
+                            consecutive_errors += 1
+                            if consecutive_errors >= max_consecutive_errors:
+                                break
+                            continue
                 
                 # Si se seleccionó la respuesta correctamente, avanzar
                 if answer_selected:

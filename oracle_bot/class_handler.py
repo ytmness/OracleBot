@@ -511,6 +511,11 @@ class ClassHandler:
             print("Esperando a que cargue la página de la clase...")
             time.sleep(3)
             
+            # Guardar la URL de la clase para poder navegar de vuelta después
+            current_url = self.driver.current_url
+            self.current_class_url = current_url
+            print(f"  📋 URL de la clase guardada: {current_url[:100]}...")
+            
             # Verificar que estamos en la página de la clase (buscar secciones)
             try:
                 self.wait.until(
@@ -901,50 +906,108 @@ class ClassHandler:
     
     def go_back_to_sections(self) -> bool:
         """
-        Navega de vuelta a la lista de secciones
+        Navega de vuelta a la lista de secciones desde la página de resultados o quiz
         
         Returns:
             True si se navegó correctamente, False en caso contrario
         """
         try:
             print("\nNavegando de vuelta a la lista de secciones...")
+            current_url = self.driver.current_url
+            print(f"  📋 URL actual: {current_url[:100]}...")
             
-            # Intentar usar el botón de retroceso del navegador
-            self.driver.back()
-            time.sleep(3)  # Esperar más tiempo
+            # Si estamos en página de resultados (p=63000:192), necesitamos retroceder más
+            if ':192:' in current_url or 'P192' in current_url:
+                print("  📋 Detectada página de resultados, retrocediendo...")
+                # Retroceder desde resultados hasta la página de secciones
+                # Resultados -> Quiz -> Sección -> Secciones (lista)
+                self.driver.back()  # De resultados a quiz
+                time.sleep(2)
+                self.driver.back()  # De quiz a sección
+                time.sleep(2)
+                self.driver.back()  # De sección a lista de secciones
+                time.sleep(3)
+            elif ':190:' in current_url or 'P190' in current_url:
+                print("  📋 Detectada página del quiz, retrocediendo...")
+                # Retroceder desde quiz hasta la página de secciones
+                self.driver.back()  # De quiz a sección
+                time.sleep(2)
+                self.driver.back()  # De sección a lista de secciones
+                time.sleep(3)
+            else:
+                # Intentar retroceder normalmente
+                self.driver.back()
+                time.sleep(3)
             
-            # Verificar que estamos en la página de secciones con timeout corto
+            # Verificar que estamos en la página de secciones
             from selenium.webdriver.support.ui import WebDriverWait as QuickWait
-            quick_wait = QuickWait(self.driver, 5)
+            quick_wait = QuickWait(self.driver, 10)
             
+            # Verificar por selector primero
             try:
                 quick_wait.until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, self.selectors.SECTION_ITEM))
                 )
-                print("✓ Regresado a la lista de secciones")
+                print("✓ Regresado a la lista de secciones (verificado por selector)")
                 return True
             except:
                 # Si no encuentra por selector, verificar por URL
                 current_url = self.driver.current_url
-                if "63000:15" in current_url or "63000:14" in current_url:
+                print(f"  📋 URL después de retroceder: {current_url[:100]}...")
+                
+                if "63000:15" in current_url or "P15" in current_url:
                     print("✓ Regresado a la página de secciones (verificado por URL)")
+                    # Esperar un poco más para que cargue completamente
+                    time.sleep(2)
                     return True
+                elif "63000:14" in current_url or "P14" in current_url:
+                    print("✓ Regresado a la página de la clase (verificado por URL)")
+                    # Si estamos en la página de la clase, necesitamos ir a secciones
+                    # Buscar el enlace o botón para ver secciones
+                    time.sleep(2)
+                    # Intentar encontrar y hacer clic en el enlace de secciones
+                    try:
+                        sections_link = self.driver.find_element(By.CSS_SELECTOR, "a[href*='63000:15']")
+                        sections_link.click()
+                        time.sleep(3)
+                        print("✓ Navegado a secciones desde la página de la clase")
+                        return True
+                    except:
+                        print("⚠ No se encontró enlace a secciones, pero continuando...")
+                        return True
                 else:
-                    print(f"⚠ No se pudo verificar - URL actual: {current_url}")
-                    # Intentar navegar directamente a la página de la clase
-                    print("Intentando navegar directamente a la página de la clase...")
-                    # La URL de la clase debería estar guardada, pero por ahora intentamos volver
-                    self.driver.back()
-                    time.sleep(3)
-                    return True  # Continuar de todas formas
+                    print(f"⚠ URL no reconocida - URL actual: {current_url[:100]}...")
+                    # Intentar navegar directamente usando la URL de la clase guardada
+                    if hasattr(self, 'current_class_url') and self.current_class_url:
+                        print("Intentando navegar directamente a la URL de la clase guardada...")
+                        try:
+                            # Construir URL de secciones desde la URL de la clase
+                            class_url = self.current_class_url
+                            # Cambiar P14 por P15 para ir a secciones
+                            sections_url = class_url.replace(":14:", ":15:").replace("P14", "P15")
+                            self.driver.get(sections_url)
+                            time.sleep(5)
+                            print("✓ Navegado directamente a secciones")
+                            return True
+                        except Exception as e:
+                            print(f"⚠ Error al navegar directamente: {str(e)}")
+                    
+                    # Último intento: retroceder más veces
+                    print("Intentando retroceder más veces...")
+                    try:
+                        self.driver.execute_script("window.history.go(-3);")
+                        time.sleep(5)
+                        return True
+                    except:
+                        return False
             
         except Exception as e:
             print(f"⚠ Error al navegar de vuelta: {str(e)}")
-            # Intentar navegar directamente usando JavaScript1
+            # Intentar navegar directamente usando JavaScript
             try:
                 print("Intentando navegar con JavaScript...")
-                self.driver.execute_script("window.history.go(-2);")  # Retroceder 2 páginas
-                time.sleep(3)
+                self.driver.execute_script("window.history.go(-3);")  # Retroceder 3 páginas
+                time.sleep(5)
                 return True
             except:
                 return False

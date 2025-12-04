@@ -1089,12 +1089,30 @@ class ClassHandler:
             True si se seleccionó correctamente, False en caso contrario
         """
         try:
+            # Primero, quitar cualquier overlay que pueda estar bloqueando
+            try:
+                overlays = self.driver.find_elements(By.CSS_SELECTOR, "div.ui-widget-overlay")
+                for overlay in overlays:
+                    is_visible = self.driver.execute_script(
+                        "return arguments[0].offsetParent !== null && "
+                        "window.getComputedStyle(arguments[0]).display !== 'none';",
+                        overlay
+                    )
+                    if is_visible:
+                        print("  🔧 Detectado overlay bloqueando, removiéndolo...")
+                        self.driver.execute_script("arguments[0].style.display = 'none';", overlay)
+                        time.sleep(0.5)
+            except:
+                pass
+            
             choice_buttons = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.CHOICE_BUTTON)
             
             if choice_index < 1 or choice_index > len(choice_buttons):
                 print(f"  ⚠ Índice de opción inválido: {choice_index}")
                 return False
             
+            # Re-encontrar el botón para evitar elementos stale
+            choice_buttons = self.driver.find_elements(By.CSS_SELECTOR, self.selectors.CHOICE_BUTTON)
             target_button = choice_buttons[choice_index - 1]
             
             # Verificar si ya está seleccionada (solo para múltiples)
@@ -1104,10 +1122,38 @@ class ClassHandler:
                     print(f"  ℹ Opción {choice_index} ya está seleccionada")
                     return True
             
-            # Hacer clic en la opción
+            # Hacer scroll y esperar
             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", target_button)
-            time.sleep(0.3)
-            target_button.click()
+            time.sleep(0.5)
+            
+            # Intentar hacer clic con múltiples métodos
+            try:
+                target_button.click()
+            except Exception as e1:
+                print(f"  ⚠ Clic normal falló: {str(e1)[:100]}, intentando con JavaScript...")
+                try:
+                    # Quitar overlay nuevamente si aparece
+                    self.driver.execute_script("""
+                        var overlays = document.querySelectorAll('div.ui-widget-overlay');
+                        overlays.forEach(function(overlay) {
+                            overlay.style.display = 'none';
+                        });
+                    """)
+                    time.sleep(0.3)
+                    self.driver.execute_script("arguments[0].click();", target_button)
+                except Exception as e2:
+                    print(f"  ⚠ Clic JavaScript falló: {str(e2)[:100]}, intentando con eventos...")
+                    # Último recurso: disparar eventos manualmente
+                    self.driver.execute_script("""
+                        var btn = arguments[0];
+                        var evt = new MouseEvent('click', {
+                            bubbles: true,
+                            cancelable: true,
+                            view: window
+                        });
+                        btn.dispatchEvent(evt);
+                    """, target_button)
+            
             time.sleep(1)
             
             print(f"  ✓ Opción {choice_index} seleccionada")

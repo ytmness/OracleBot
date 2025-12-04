@@ -236,8 +236,18 @@ def continue_automatically(class_handler: ClassHandler, last_class_index: int = 
                         class_handler.driver.refresh()
                         time.sleep(3)
                     
-                    # Esperar un momento antes de continuar
-                    time.sleep(2)
+                    # Esperar un momento para que cargue completamente
+                    time.sleep(3)
+                    
+                    # Verificar que estamos en la página de secciones antes de continuar
+                    current_url = class_handler.driver.current_url
+                    if "63000:15" not in current_url and "P15" not in current_url:
+                        print("⚠ No estamos en la página de secciones, intentando navegar...")
+                        # Si no estamos en secciones, intentar navegar directamente
+                        if hasattr(class_handler, 'current_class_url') and class_handler.current_class_url:
+                            # Navegar a la clase primero
+                            class_handler.driver.get(class_handler.current_class_url)
+                            time.sleep(5)
                     
                     # Continuar automáticamente con la siguiente sección pendiente
                     # No pasar el índice porque queremos buscar desde el principio la siguiente pendiente

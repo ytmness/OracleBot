@@ -931,17 +931,32 @@ class ClassHandler:
                 # Resultados -> Quiz -> Sección -> Secciones (lista)
                 self.driver.back()  # De resultados a quiz
                 time.sleep(2)
-                self.driver.back()  # De quiz a sección
-                time.sleep(2)
-                self.driver.back()  # De sección a lista de secciones
-                time.sleep(3)
+                current_url = self.driver.current_url
+                if ':190:' in current_url or 'P190' in current_url:
+                    # Estamos en quiz, retroceder a sección
+                    self.driver.back()  # De quiz a sección
+                    time.sleep(2)
+                    current_url = self.driver.current_url
+                    if ':15:' in current_url or 'P15' in current_url:
+                        # Estamos en sección individual, retroceder a lista de secciones
+                        self.driver.back()  # De sección a lista de secciones
+                        time.sleep(3)
+                    else:
+                        print("  ⚠ No llegamos a la página de secciones después de retroceder")
+                else:
+                    print("  ⚠ No llegamos a la página del quiz después de retroceder")
             elif ':190:' in current_url or 'P190' in current_url:
                 print("  📋 Detectada página del quiz, retrocediendo...")
                 # Retroceder desde quiz hasta la página de secciones
                 self.driver.back()  # De quiz a sección
                 time.sleep(2)
-                self.driver.back()  # De sección a lista de secciones
-                time.sleep(3)
+                current_url = self.driver.current_url
+                if ':15:' in current_url or 'P15' in current_url:
+                    # Estamos en sección individual, retroceder a lista de secciones
+                    self.driver.back()  # De sección a lista de secciones
+                    time.sleep(3)
+                else:
+                    print("  ⚠ No llegamos a la página de secciones después de retroceder")
             else:
                 # Intentar retroceder normalmente
                 self.driver.back()

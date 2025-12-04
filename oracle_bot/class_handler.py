@@ -983,24 +983,38 @@ class ClassHandler:
                     except:
                         print("⚠ No se encontró enlace a secciones, pero continuando...")
                         return True
+                elif "63000:100" in current_url or "P100" in current_url:
+                    print("⚠ Estamos en la página de clases (p=63000:100), no en secciones")
+                    print("  Esto significa que retrocedimos demasiado")
+                    # Si estamos en clases, necesitamos hacer clic en "Take Class" para ir a la clase
+                    # y luego desde ahí podemos ir a secciones
+                    try:
+                        # Buscar el botón "Take Class" y hacer clic
+                        take_class_button = self.driver.find_element(
+                            By.XPATH,
+                            "//a[@class='a-CardView-button t-Button--hot']//span[contains(text(), 'Take Class')]"
+                        )
+                        print("  ✓ Encontrado botón 'Take Class', haciendo clic...")
+                        take_class_button.click()
+                        time.sleep(3)
+                        # Ahora deberíamos estar en la página de la clase (p=63000:14)
+                        # Desde ahí podemos buscar el enlace a secciones
+                        try:
+                            sections_link = self.driver.find_element(By.CSS_SELECTOR, "a[href*='63000:15']")
+                            sections_link.click()
+                            time.sleep(3)
+                            print("✓ Navegado a secciones desde la clase")
+                            return True
+                        except:
+                            print("⚠ No se encontró enlace a secciones, pero continuando...")
+                            return True
+                    except Exception as e:
+                        print(f"⚠ Error al hacer clic en 'Take Class': {str(e)}")
+                        return True  # Continuar de todas formas
                 else:
                     print(f"⚠ URL no reconocida - URL actual: {current_url[:100]}...")
-                    # Intentar navegar directamente usando la URL de la clase guardada
-                    if hasattr(self, 'current_class_url') and self.current_class_url:
-                        print("Intentando navegar directamente a la URL de la clase guardada...")
-                        try:
-                            # Construir URL de secciones desde la URL de la clase
-                            class_url = self.current_class_url
-                            # Cambiar P14 por P15 para ir a secciones
-                            sections_url = class_url.replace(":14:", ":15:").replace("P14", "P15")
-                            self.driver.get(sections_url)
-                            time.sleep(5)
-                            print("✓ Navegado directamente a secciones")
-                            return True
-                        except Exception as e:
-                            print(f"⚠ Error al navegar directamente: {str(e)}")
-                    
-                    # Último intento: retroceder más veces
+                    # NO intentar construir URLs manualmente (causa error de checksum)
+                    # En su lugar, intentar retroceder más veces o refrescar
                     print("Intentando retroceder más veces...")
                     try:
                         self.driver.execute_script("window.history.go(-3);")

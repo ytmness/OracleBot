@@ -247,7 +247,16 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler):
                                 continue
                             
                             # Completar secciones hasta la seleccionada
-                            for i in range(section_choice):
+                            i = 0
+                            while i < section_choice:
+                                # Refrescar la lista de secciones antes de cada iteración
+                                print(f"\n📋 Obteniendo lista actualizada de secciones...")
+                                sections = class_handler.get_sections()
+                                
+                                if not sections:
+                                    print("⚠ No se pudieron obtener las secciones, deteniendo...")
+                                    break
+                                
                                 # Verificar que el índice es válido
                                 if i >= len(sections):
                                     print(f"\n⚠ No hay más secciones disponibles (índice {i+1} fuera de rango)")
@@ -257,6 +266,7 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler):
                                 
                                 if section.is_complete:
                                     print(f"\n⏭ Sección {i+1} ya está completada, saltando...")
+                                    i += 1
                                     continue
                                 
                                 print(f"\n{'='*60}")
@@ -269,19 +279,21 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler):
                                     class_handler.complete_section(max_quizzes=1)
                                     
                                     # Volver a la lista de secciones
+                                    print("\n🔄 Regresando a la lista de secciones...")
                                     if not class_handler.go_back_to_sections():
                                         print("⚠ No se pudo volver a la lista de secciones, intentando refrescar...")
                                         # Intentar refrescar la página
                                         class_handler.driver.refresh()
                                         time.sleep(3)
                                     
-                                    # Refrescar la lista de secciones
-                                    print("\nRefrescando lista de secciones...")
-                                    sections = class_handler.get_sections()
+                                    # Esperar un momento antes de continuar
+                                    time.sleep(2)
                                     
-                                    if not sections:
-                                        print("⚠ No se pudieron obtener las secciones, deteniendo...")
-                                        break
+                                    # Avanzar al siguiente índice
+                                    i += 1
+                                else:
+                                    print(f"⚠ No se pudo seleccionar la sección {i+1}, intentando continuar...")
+                                    i += 1
                                 
                         except ValueError:
                             print("⚠ Por favor ingrese un número válido")

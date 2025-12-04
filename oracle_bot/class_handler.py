@@ -1959,76 +1959,140 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                         
                         if "Complete Assessment" in button_text:
                             print("  ✓ Encontrado botón 'Complete Assessment' en breadcrumb (por ID)")
+                            print("  📋 Este es el primer botón que abre una ventana/modal")
+                            
+                            # Guardar ventanas antes del clic
+                            original_window = self.driver.current_window_handle
+                            window_count_before = len(self.driver.window_handles)
+                            
                             self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
                             time.sleep(1)
                             
-                            # Intentar múltiples métodos de clic
+                            # Hacer clic en el primer botón (abre ventana/modal)
                             clicked = False
-                            
-                            # Método 1: Clic normal
                             try:
                                 complete_button.click()
                                 clicked = True
-                                print("  ✓ Clic realizado con método normal")
+                                print("  ✓ Clic en primer botón realizado (abre ventana/modal)")
                             except Exception as e1:
-                                print(f"  ⚠ Clic normal falló: {str(e1)[:100]}")
-                                
-                                # Método 2: JavaScript click
+                                print(f"  ⚠ Clic normal falló: {str(e1)[:100]}, intentando con JavaScript...")
                                 try:
                                     self.driver.execute_script("arguments[0].click();", complete_button)
                                     clicked = True
-                                    print("  ✓ Clic realizado con JavaScript")
+                                    print("  ✓ Clic con JavaScript realizado")
                                 except Exception as e2:
                                     print(f"  ⚠ Clic JavaScript falló: {str(e2)[:100]}")
-                                    
-                                    # Método 3: Disparar eventos manualmente
-                                    try:
-                                        self.driver.execute_script("""
-                                            var btn = arguments[0];
-                                            btn.focus();
-                                            var evt = new MouseEvent('click', {
-                                                bubbles: true,
-                                                cancelable: true,
-                                                view: window,
-                                                button: 0
-                                            });
-                                            btn.dispatchEvent(evt);
-                                        """, complete_button)
-                                        clicked = True
-                                        print("  ✓ Evento click disparado manualmente")
-                                    except Exception as e3:
-                                        print(f"  ⚠ Disparo de evento falló: {str(e3)[:100]}")
                             
                             if clicked:
-                                print("  ⏳ Esperando a que la página cambie a resultados...")
+                                print("  ⏳ Esperando a que se abra la ventana/modal...")
+                                time.sleep(3)  # Esperar a que se abra la ventana/modal
                                 
-                                # Esperar explícitamente a que la URL cambie a página de resultados (p=63000:192)
-                                url_changed = False
-                                for wait_attempt in range(10):  # Esperar hasta 20 segundos
-                                    time.sleep(2)
-                                    current_url = self.driver.current_url
-                                    
-                                    if ':192:' in current_url or 'P192' in current_url:
-                                        print(f"  ✓ Página cambió a resultados después del clic (intento {wait_attempt + 1})")
-                                        print(f"  📋 URL de resultados: {current_url[:120]}...")
-                                        url_changed = True
-                                        break
-                                    
-                                    # También verificar si ya no estamos en la página del quiz
-                                    if ':190:' not in current_url and 'P190' not in current_url:
-                                        # Puede que haya cambiado a otra página
-                                        print(f"  📋 URL cambió (ya no es página del quiz): {current_url[:120]}...")
-                                        if ':192:' in current_url or 'P192' in current_url:
-                                            url_changed = True
+                                # Verificar si se abrió una nueva ventana
+                                window_count_after = len(self.driver.window_handles)
+                                if window_count_after > window_count_before:
+                                    print(f"  ✓ Se abrió una nueva ventana ({window_count_after} ventanas)")
+                                    # Cambiar a la nueva ventana
+                                    for window_handle in self.driver.window_handles:
+                                        if window_handle != original_window:
+                                            self.driver.switch_to.window(window_handle)
+                                            print(f"  ✓ Cambiado a la nueva ventana - URL: {self.driver.current_url[:100]}...")
                                             break
                                 
-                                if url_changed:
-                                    print("  ✓ Quiz completado - Página de resultados detectada")
-                                    time.sleep(3)  # Esperar un poco más para que cargue completamente
-                                    return False  # Quiz terminado
+                                # Buscar el segundo botón (CONFIRMCOMPLETE) en la nueva ventana/modal
+                                print("  🔍 Buscando segundo botón 'Complete Assessment' (CONFIRMCOMPLETE)...")
+                                confirm_button = None
+                                
+                                # Esperar a que aparezca el segundo botón
+                                for wait_attempt in range(10):  # Esperar hasta 20 segundos
+                                    time.sleep(2)
+                                    try:
+                                        # Buscar por ID específico
+                                        confirm_button = self.driver.find_element(By.CSS_SELECTOR, "button#B102388866620266126")
+                                        button_text_confirm = ""
+                                        try:
+                                            button_text_confirm = confirm_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                                        except:
+                                            button_text_confirm = confirm_button.text.strip()
+                                        
+                                        if "Complete Assessment" in button_text_confirm:
+                                            print(f"  ✓ Segundo botón encontrado (intento {wait_attempt + 1})")
+                                            break
+                                    except:
+                                        # Intentar buscar por data-otel-label
+                                        try:
+                                            confirm_buttons = self.driver.find_elements(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
+                                            for btn in confirm_buttons:
+                                                btn_text = ""
+                                                try:
+                                                    btn_text = btn.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                                                except:
+                                                    btn_text = btn.text.strip()
+                                                
+                                                if "Complete Assessment" in btn_text:
+                                                    confirm_button = btn
+                                                    print(f"  ✓ Segundo botón encontrado por data-otel-label (intento {wait_attempt + 1})")
+                                                    break
+                                            
+                                            if confirm_button:
+                                                break
+                                        except:
+                                            pass
+                                
+                                if confirm_button:
+                                    print("  🎯 Haciendo clic en el segundo botón (CONFIRMCOMPLETE)...")
+                                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", confirm_button)
+                                    time.sleep(1)
+                                    
+                                    # Hacer clic en el segundo botón
+                                    try:
+                                        confirm_button.click()
+                                        print("  ✓ Clic en segundo botón realizado")
+                                    except:
+                                        self.driver.execute_script("arguments[0].click();", confirm_button)
+                                        print("  ✓ Clic en segundo botón realizado con JavaScript")
+                                    
+                                    # Esperar a que cambie a página de resultados
+                                    print("  ⏳ Esperando a que la página cambie a resultados...")
+                                    url_changed = False
+                                    for wait_attempt in range(10):  # Esperar hasta 20 segundos
+                                        time.sleep(2)
+                                        current_url = self.driver.current_url
+                                        
+                                        if ':192:' in current_url or 'P192' in current_url:
+                                            print(f"  ✓ Página cambió a resultados después del segundo clic (intento {wait_attempt + 1})")
+                                            print(f"  📋 URL de resultados: {current_url[:120]}...")
+                                            url_changed = True
+                                            break
+                                    
+                                    if url_changed:
+                                        print("  ✓ Quiz completado - Página de resultados detectada")
+                                        time.sleep(3)
+                                        # Cerrar la ventana modal si es necesario y volver a la original
+                                        if window_count_after > window_count_before:
+                                            self.driver.close()  # Cerrar ventana modal
+                                            self.driver.switch_to.window(original_window)
+                                        return False  # Quiz terminado
+                                    else:
+                                        print("  ⚠ La URL no cambió a página de resultados después del segundo clic")
+                                        print(f"  📋 URL actual: {self.driver.current_url[:120]}...")
                                 else:
-                                    print("  ⚠ La URL no cambió a página de resultados después del clic")
-                                    print(f"  📋 URL actual: {self.driver.current_url[:120]}...")
+                                    print("  ⚠ No se encontró el segundo botón CONFIRMCOMPLETE")
+                                    # Intentar buscar en modales/overlays
+                                    try:
+                                        overlays = self.driver.find_elements(By.CSS_SELECTOR, "div.ui-widget-overlay")
+                                        for overlay in overlays:
+                                            try:
+                                                confirm_btn = overlay.find_element(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
+                                                confirm_btn.click()
+                                                print("  ✓ Segundo botón encontrado en overlay y clickeado")
+                                                time.sleep(5)
+                                                return False
+                                            except:
+                                                continue
+                                    except:
+                                        pass
+                            else:
+                                print("  ⚠ No se pudo hacer clic en el primer botón")
                                 
                                 # Verificar si todavía estamos en la misma pregunta
                                 try:

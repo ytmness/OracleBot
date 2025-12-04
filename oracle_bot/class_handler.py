@@ -1406,73 +1406,190 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             except:
                 pass
             
-            # Método PRIMERO: Buscar directamente el botón por ID quiz-submit (más específico)
-            complete_button = None
+            # Método PRIMERO: Buscar el primer botón (quiz-submit) que abre la ventana/modal
+            first_button = None
             try:
-                print("  🔍 Buscando botón por id='quiz-submit'...")
-                complete_button = wait_modal.until(
+                print("  🔍 Buscando primer botón por id='quiz-submit' (abre ventana/modal)...")
+                first_button = wait_modal.until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "button#quiz-submit"))
                 )
-                print("  ✓ Botón encontrado por ID quiz-submit")
+                print("  ✓ Primer botón encontrado por ID quiz-submit")
             except Exception:
-                # Método PRIMERO.5: Buscar por data-otel-label='SUBMIT'
+                # Buscar por data-otel-label='SUBMIT'
                 try:
-                    print("  🔍 Buscando botón por data-otel-label='SUBMIT'...")
-                    complete_button = wait_modal.until(
+                    print("  🔍 Buscando primer botón por data-otel-label='SUBMIT'...")
+                    first_button = wait_modal.until(
                         EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-otel-label='SUBMIT']"))
                     )
-                    print("  ✓ Botón encontrado por data-otel-label='SUBMIT'")
+                    print("  ✓ Primer botón encontrado por data-otel-label='SUBMIT'")
                 except Exception:
-                    # Método PRIMERO.6: Buscar por data-otel-label='CONFIRMCOMPLETE'
-                    try:
-                        print("  🔍 Buscando botón por data-otel-label='CONFIRMCOMPLETE'...")
-                        complete_button = wait_modal.until(
-                            EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']"))
-                        )
-                        print("  ✓ Botón encontrado por data-otel-label='CONFIRMCOMPLETE'")
-                    except Exception:
-                        complete_button = None
+                    first_button = None
             
-            if complete_button:
-                # Verificar visibilidad con JavaScript
-                is_visible = self.driver.execute_script(
-                    "return arguments[0].offsetParent !== null && "
-                    "window.getComputedStyle(arguments[0]).display !== 'none' && "
-                    "window.getComputedStyle(arguments[0]).visibility !== 'hidden';",
-                    complete_button
-                )
-                
-                # Verificar el texto del botón para confirmar que es "Complete Assessment"
+            if first_button:
+                # Verificar el texto del botón
                 button_text = ""
                 try:
-                    button_text = complete_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                    button_text = first_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
                 except Exception:
-                    button_text = complete_button.text.strip()
+                    button_text = first_button.text.strip()
                 
-                print(f"  📋 Texto del botón encontrado: '{button_text}'")
-                
-                if is_visible and ("Complete Assessment" in button_text or "Complete" in button_text):
-                    print("  ✓ Botón 'Complete Assessment' encontrado y visible")
-                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                if "Complete Assessment" in button_text:
+                    print("  📋 Este es el primer botón que abre una ventana/modal")
+                    print(f"  📋 Texto del botón: '{button_text}'")
+                    
+                    # Guardar ventanas antes del clic
+                    window_count_before_click = len(self.driver.window_handles)
+                    
+                    # Hacer clic en el primer botón
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", first_button)
                     time.sleep(1)
                     
-                    # Intentar hacer clic con JavaScript si el clic normal falla
                     try:
-                        complete_button.click()
-                        print("  ✓ Clic realizado con método normal")
+                        first_button.click()
+                        print("  ✓ Clic en primer botón realizado")
                     except Exception:
-                        print("  ⚠ Clic normal falló, intentando con JavaScript...")
-                        self.driver.execute_script("arguments[0].click();", complete_button)
-                        print("  ✓ Clic realizado con JavaScript")
+                        self.driver.execute_script("arguments[0].click();", first_button)
+                        print("  ✓ Clic en primer botón realizado con JavaScript")
                     
-                    time.sleep(4)
-                    print("  ✓ Clic en 'Complete Assessment' realizado")
-                    # Si cambiamos de ventana, volver a la original
-                    if window_count_after > window_count_before:
-                        self.driver.switch_to.window(original_window)
-                    return True
-                else:
-                    print(f"  ⚠ Botón encontrado pero no está visible o no tiene el texto correcto (visible={is_visible}, texto='{button_text}')")
+                    # Esperar a que se abra la ventana/modal
+                    print("  ⏳ Esperando a que se abra la ventana/modal...")
+                    time.sleep(3)
+                    
+                    # Verificar si se abrió una nueva ventana
+                    window_count_after_click = len(self.driver.window_handles)
+                    if window_count_after_click > window_count_before_click:
+                        print(f"  ✓ Se abrió una nueva ventana ({window_count_after_click} ventanas)")
+                        # Cambiar a la nueva ventana
+                        for window_handle in self.driver.window_handles:
+                            if window_handle != original_window:
+                                self.driver.switch_to.window(window_handle)
+                                print(f"  ✓ Cambiado a la nueva ventana - URL: {self.driver.current_url[:100]}...")
+                                break
+                    
+                    # Buscar el segundo botón (CONFIRMCOMPLETE) en la nueva ventana/modal
+                    print("  🔍 Buscando segundo botón 'Complete Assessment' (CONFIRMCOMPLETE)...")
+                    confirm_button = None
+                    
+                    # Esperar a que aparezca el segundo botón
+                    for wait_attempt in range(10):  # Esperar hasta 20 segundos
+                        time.sleep(2)
+                        try:
+                            # Buscar por ID específico
+                            confirm_button = self.driver.find_element(By.CSS_SELECTOR, "button#B102388866620266126")
+                            button_text_confirm = ""
+                            try:
+                                button_text_confirm = confirm_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                            except:
+                                button_text_confirm = confirm_button.text.strip()
+                            
+                            if "Complete Assessment" in button_text_confirm:
+                                print(f"  ✓ Segundo botón encontrado (intento {wait_attempt + 1})")
+                                break
+                        except:
+                            # Intentar buscar por data-otel-label
+                            try:
+                                confirm_buttons = self.driver.find_elements(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
+                                for btn in confirm_buttons:
+                                    btn_text = ""
+                                    try:
+                                        btn_text = btn.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                                    except:
+                                        btn_text = btn.text.strip()
+                                    
+                                    if "Complete Assessment" in btn_text:
+                                        confirm_button = btn
+                                        print(f"  ✓ Segundo botón encontrado por data-otel-label (intento {wait_attempt + 1})")
+                                        break
+                                
+                                if confirm_button:
+                                    break
+                            except:
+                                pass
+                    
+                    if confirm_button:
+                        print("  🎯 Haciendo clic en el segundo botón (CONFIRMCOMPLETE)...")
+                        self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", confirm_button)
+                        time.sleep(1)
+                        
+                        # Hacer clic en el segundo botón
+                        try:
+                            confirm_button.click()
+                            print("  ✓ Clic en segundo botón realizado")
+                        except:
+                            self.driver.execute_script("arguments[0].click();", confirm_button)
+                            print("  ✓ Clic en segundo botón realizado con JavaScript")
+                        
+                        # Esperar a que cambie a página de resultados
+                        print("  ⏳ Esperando a que la página cambie a resultados...")
+                        url_changed = False
+                        for wait_attempt in range(10):  # Esperar hasta 20 segundos
+                            time.sleep(2)
+                            current_url = self.driver.current_url
+                            
+                            if ':192:' in current_url or 'P192' in current_url:
+                                print(f"  ✓ Página cambió a resultados después del segundo clic (intento {wait_attempt + 1})")
+                                print(f"  📋 URL de resultados: {current_url[:120]}...")
+                                url_changed = True
+                                break
+                        
+                        if url_changed:
+                            print("  ✓ Quiz completado - Página de resultados detectada")
+                            time.sleep(3)
+                            # Cerrar la ventana modal si es necesario y volver a la original
+                            if window_count_after_click > window_count_before_click:
+                                self.driver.close()  # Cerrar ventana modal
+                                self.driver.switch_to.window(original_window)
+                            return True
+                        else:
+                            print("  ⚠ La URL no cambió a página de resultados después del segundo clic")
+                            print(f"  📋 URL actual: {self.driver.current_url[:120]}...")
+                            return False
+                    else:
+                        print("  ⚠ No se encontró el segundo botón CONFIRMCOMPLETE")
+                        return False
+            
+            # Método ALTERNATIVO: Buscar directamente el segundo botón (si ya está abierto el modal)
+            try:
+                print("  🔍 Buscando segundo botón directamente por data-otel-label='CONFIRMCOMPLETE'...")
+                confirm_button = wait_modal.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']"))
+                )
+                print("  ✓ Segundo botón encontrado directamente")
+                
+                button_text = ""
+                try:
+                    button_text = confirm_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                except Exception:
+                    button_text = confirm_button.text.strip()
+                
+                if "Complete Assessment" in button_text:
+                    print("  🎯 Haciendo clic en el segundo botón (CONFIRMCOMPLETE)...")
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", confirm_button)
+                    time.sleep(1)
+                    
+                    try:
+                        confirm_button.click()
+                        print("  ✓ Clic en segundo botón realizado")
+                    except:
+                        self.driver.execute_script("arguments[0].click();", confirm_button)
+                        print("  ✓ Clic en segundo botón realizado con JavaScript")
+                    
+                    # Esperar a que cambie a página de resultados
+                    print("  ⏳ Esperando a que la página cambie a resultados...")
+                    url_changed = False
+                    for wait_attempt in range(10):
+                        time.sleep(2)
+                        current_url = self.driver.current_url
+                        
+                        if ':192:' in current_url or 'P192' in current_url:
+                            print(f"  ✓ Página cambió a resultados (intento {wait_attempt + 1})")
+                            url_changed = True
+                            break
+                    
+                    if url_changed:
+                        return True
+            except Exception:
+                pass
             
             # Intentar esperar a que aparezca el overlay ui-widget-overlay (jQuery UI modal)
             try:

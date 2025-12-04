@@ -2055,16 +2055,64 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                     # Resetear contador de errores
                     consecutive_errors = 0
                     
+                    # Guardar URL actual antes de avanzar
+                    url_before = self.driver.current_url
+                    
                     # Esperar un momento antes de avanzar
                     time.sleep(1.5)
                     
                     # Avanzar a la siguiente pregunta
                     has_more = self.go_to_next_question()
                     
+                    # Esperar a que la página se actualice
+                    time.sleep(3)
+                    
+                    # Verificar si la URL cambió (puede indicar que se movió a página de resultados)
+                    url_after = self.driver.current_url
+                    url_changed = url_before != url_after
+                    
+                    if url_changed:
+                        print(f"  📋 URL cambió después de avanzar:")
+                        print(f"    Antes: {url_before[:100]}...")
+                        print(f"    Después: {url_after[:100]}...")
+                        
+                        # Verificar si estamos en página de resultados/confirmación (p=63000:190)
+                        if ':190:' in url_after or 'P190' in url_after:
+                            print("  📋 Detectada página de resultados/confirmación (p=63000:190)")
+                            # Esperar a que cargue completamente la nueva página
+                            time.sleep(5)
+                            # Buscar el botón en esta nueva página
+                            complete_clicked = self.click_complete_assessment_button()
+                            
+                            if complete_clicked:
+                                print(f"\n  ✓ Quiz completado exitosamente - Total de preguntas respondidas: {questions_answered}")
+                                break
+                    
                     if not has_more:
                         print(f"\n  ✓ Última pregunta respondida - Total: {questions_answered}")
                         
-                        # Buscar explícitamente el botón "Complete Assessment" después de la última pregunta
+                        # Esperar más tiempo para que aparezca el botón o cambie la página
+                        print("  ⏳ Esperando a que aparezca el botón o cambie la página...")
+                        for wait_attempt in range(5):
+                            time.sleep(2)
+                            current_url = self.driver.current_url
+                            
+                            # Verificar si cambió a página de resultados
+                            if ':190:' in current_url or 'P190' in current_url:
+                                print(f"  📋 Página cambió a resultados: {current_url[:100]}...")
+                                time.sleep(3)  # Esperar a que cargue
+                                break
+                            
+                            # Intentar buscar el botón
+                            try:
+                                btn = self.driver.find_element(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
+                                if btn:
+                                    print("  ✓ Botón encontrado durante la espera")
+                                    break
+                            except:
+                                pass
+                        
+                        # Buscar explícitamente el botón "Complete Assessment"
                         print("  🔍 Buscando botón 'Complete Assessment'...")
                         complete_clicked = self.click_complete_assessment_button()
                         
@@ -2073,6 +2121,7 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                         else:
                             print(f"\n  ⚠ Quiz completado pero no se encontró el botón 'Complete Assessment'")
                             print(f"  Total de preguntas respondidas: {questions_answered}")
+                            print(f"  URL actual: {self.driver.current_url}")
                         break
                     
                     # Esperar a que cargue la siguiente pregunta

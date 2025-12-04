@@ -1383,32 +1383,147 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                 print(f"  ⚠ Error buscando t-ButtonRegion: {str(e)}")
                 pass
             
+            # Método 0.5: Buscar específicamente cuando ui-widget-overlay está visible
+            try:
+                overlays = self.driver.find_elements(By.CSS_SELECTOR, "div.ui-widget-overlay")
+                print(f"  📋 Encontrados {len(overlays)} overlay(s) ui-widget-overlay")
+                for idx, overlay in enumerate(overlays):
+                    try:
+                        is_visible = self.driver.execute_script(
+                            "return arguments[0].offsetParent !== null && "
+                            "window.getComputedStyle(arguments[0]).display !== 'none' && "
+                            "window.getComputedStyle(arguments[0]).visibility !== 'hidden' && "
+                            "parseFloat(window.getComputedStyle(arguments[0]).opacity) > 0;",
+                            overlay
+                        )
+                        
+                        if is_visible:
+                            print(f"  📋 Overlay ui-widget-overlay {idx+1} está visible (z-index: {overlay.value_of_css_property('z-index')})")
+                            
+                            # Cuando el overlay está visible, buscar el modal que generalmente está después en el DOM
+                            # o buscar directamente el botón en toda la página
+                            try:
+                                # Buscar el modal ui-dialog que está después del overlay
+                                modal = self.driver.find_element(By.XPATH, 
+                                    "//div[@class='ui-widget-overlay']/following-sibling::div[contains(@class, 'ui-dialog')] | "
+                                    "//div[@class='ui-widget-overlay']/following-sibling::div[@role='dialog']")
+                                
+                                if modal:
+                                    print(f"  📋 Modal encontrado después del overlay {idx+1}")
+                                    complete_button = modal.find_element(By.CSS_SELECTOR, 
+                                        "button[data-otel-label='CONFIRMCOMPLETE']")
+                                    
+                                    if complete_button:
+                                        button_visible = self.driver.execute_script(
+                                            "return arguments[0].offsetParent !== null && "
+                                            "window.getComputedStyle(arguments[0]).display !== 'none';",
+                                            complete_button
+                                        )
+                                        if button_visible:
+                                            print("  ✓ Encontrado botón 'Complete Assessment' en modal dentro de ui-widget-overlay")
+                                            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                                            time.sleep(0.8)
+                                            complete_button.click()
+                                            time.sleep(4)
+                                            print("  ✓ Clic en 'Complete Assessment' realizado")
+                                            if window_count_after > window_count_before:
+                                                self.driver.switch_to.window(original_window)
+                                            return True
+                            except:
+                                # Si no encuentra el modal, buscar el botón directamente cuando el overlay está visible
+                                try:
+                                    complete_button = self.driver.find_element(By.CSS_SELECTOR, 
+                                        "button[data-otel-label='CONFIRMCOMPLETE']")
+                                    
+                                    if complete_button:
+                                        button_visible = self.driver.execute_script(
+                                            "return arguments[0].offsetParent !== null && "
+                                            "window.getComputedStyle(arguments[0]).display !== 'none' && "
+                                            "window.getComputedStyle(arguments[0]).zIndex > 900;",
+                                            complete_button
+                                        )
+                                        if button_visible:
+                                            print("  ✓ Encontrado botón 'Complete Assessment' cuando overlay está visible")
+                                            self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                                            time.sleep(0.8)
+                                            complete_button.click()
+                                            time.sleep(4)
+                                            print("  ✓ Clic en 'Complete Assessment' realizado")
+                                            if window_count_after > window_count_before:
+                                                self.driver.switch_to.window(original_window)
+                                            return True
+                                except:
+                                    pass
+                    except Exception as e:
+                        print(f"  ⚠ Error en overlay {idx+1}: {str(e)}")
+                        continue
+            except Exception as e:
+                print(f"  ⚠ Error buscando ui-widget-overlay: {str(e)}")
+                pass
+            
             # Método 1: Buscar modales/popups primero y cambiar el contexto si es necesario
             try:
                 # Buscar modales comunes (dialog, modal, popup)
-                modals = self.driver.find_elements(By.CSS_SELECTOR, 
-                    "div[role='dialog'], div.ui-dialog, div.modal, div.popup, div.t-Dialog, div[class*='Dialog'], div[class*='Modal']")
+                modal_selectors = [
+                    "div.ui-dialog",  # Prioridad alta para jQuery UI
+                    "div[role='dialog']",
+                    "div.modal",
+                    "div.popup",
+                    "div.t-Dialog",
+                    "div[class*='Dialog']",
+                    "div[class*='Modal']",
+                    "div[class*='dialog']",
+                    "div[class*='popup']"
+                ]
                 
-                if modals:
-                    print(f"  📋 Encontrado {len(modals)} modal(es)/popup(s), buscando botón dentro...")
-                    for modal in modals:
+                all_modals = []
+                for selector in modal_selectors:
+                    try:
+                        modals = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                        all_modals.extend(modals)
+                    except:
+                        continue
+                
+                if all_modals:
+                    print(f"  📋 Encontrados {len(all_modals)} modal(es)/popup(s), buscando botón dentro...")
+                    for idx, modal in enumerate(all_modals):
                         try:
-                            if modal.is_displayed():
+                            is_visible = self.driver.execute_script(
+                                "return arguments[0].offsetParent !== null && "
+                                "window.getComputedStyle(arguments[0]).display !== 'none' && "
+                                "window.getComputedStyle(arguments[0]).visibility !== 'hidden' && "
+                                "window.getComputedStyle(arguments[0]).opacity !== '0';",
+                                modal
+                            )
+                            
+                            if is_visible:
+                                print(f"  📋 Modal {idx+1} está visible")
                                 # Buscar el botón dentro del modal
                                 complete_button = modal.find_element(By.CSS_SELECTOR, 
                                     "button[data-otel-label='CONFIRMCOMPLETE']")
                                 
-                                if complete_button and complete_button.is_displayed():
-                                    print("  ✓ Encontrado botón 'Complete Assessment' en modal")
-                                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                                    time.sleep(0.8)
-                                    complete_button.click()
-                                    time.sleep(4)
-                                    print("  ✓ Clic en 'Complete Assessment' realizado")
-                                    return True
-                        except:
+                                if complete_button:
+                                    button_visible = self.driver.execute_script(
+                                        "return arguments[0].offsetParent !== null && "
+                                        "window.getComputedStyle(arguments[0]).display !== 'none';",
+                                        complete_button
+                                    )
+                                    if button_visible:
+                                        print("  ✓ Encontrado botón 'Complete Assessment' en modal")
+                                        self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                                        time.sleep(0.8)
+                                        complete_button.click()
+                                        time.sleep(4)
+                                        print("  ✓ Clic en 'Complete Assessment' realizado")
+                                        # Si cambiamos de ventana, volver a la original
+                                        if window_count_after > window_count_before:
+                                            self.driver.switch_to.window(original_window)
+                                        return True
+                        except Exception as e:
+                            print(f"  ⚠ Error en modal {idx+1}: {str(e)}")
                             continue
-            except:
+            except Exception as e:
+                print(f"  ⚠ Error buscando modales: {str(e)}")
                 pass
             
             # Método 2: Buscar por data-otel-label (más específico, debe ser prioritario)

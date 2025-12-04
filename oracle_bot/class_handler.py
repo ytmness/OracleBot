@@ -1243,7 +1243,6 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             
             # Extraer los números de las respuestas
             try:
-                import re
                 # Buscar todos los números en la respuesta usando regex
                 # Esto maneja casos como "1", "1, 3, 5", "opción 2", "la respuesta es 3", etc.
                 numbers = re.findall(r'\b(\d+)\b', answer_text)

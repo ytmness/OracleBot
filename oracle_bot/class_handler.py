@@ -2000,16 +2000,35 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                                         print(f"  ⚠ Disparo de evento falló: {str(e3)[:100]}")
                             
                             if clicked:
-                                time.sleep(5)  # Esperar más tiempo después del clic
+                                print("  ⏳ Esperando a que la página cambie a resultados...")
                                 
-                                # Verificar si realmente avanzó (URL cambió o aparece página de resultados)
-                                time.sleep(3)
-                                new_url = self.driver.current_url
+                                # Esperar explícitamente a que la URL cambie a página de resultados (p=63000:192)
+                                url_changed = False
+                                for wait_attempt in range(10):  # Esperar hasta 20 segundos
+                                    time.sleep(2)
+                                    current_url = self.driver.current_url
+                                    
+                                    if ':192:' in current_url or 'P192' in current_url:
+                                        print(f"  ✓ Página cambió a resultados después del clic (intento {wait_attempt + 1})")
+                                        print(f"  📋 URL de resultados: {current_url[:120]}...")
+                                        url_changed = True
+                                        break
+                                    
+                                    # También verificar si ya no estamos en la página del quiz
+                                    if ':190:' not in current_url and 'P190' not in current_url:
+                                        # Puede que haya cambiado a otra página
+                                        print(f"  📋 URL cambió (ya no es página del quiz): {current_url[:120]}...")
+                                        if ':192:' in current_url or 'P192' in current_url:
+                                            url_changed = True
+                                            break
                                 
-                                # Verificar si cambió a página de resultados
-                                if ':192:' in new_url or 'P192' in new_url:
-                                    print("  ✓ Página cambió a resultados después del clic, quiz completado")
+                                if url_changed:
+                                    print("  ✓ Quiz completado - Página de resultados detectada")
+                                    time.sleep(3)  # Esperar un poco más para que cargue completamente
                                     return False  # Quiz terminado
+                                else:
+                                    print("  ⚠ La URL no cambió a página de resultados después del clic")
+                                    print(f"  📋 URL actual: {self.driver.current_url[:120]}...")
                                 
                                 # Verificar si todavía estamos en la misma pregunta
                                 try:
@@ -2130,13 +2149,23 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                                                 print(f"  ⚠ Disparo de evento falló: {str(e3)[:100]}")
                                     
                                     if clicked:
-                                        time.sleep(5)  # Esperar más tiempo después del clic
+                                        print("  ⏳ Esperando a que la página cambie a resultados...")
                                         
-                                        # Verificar si realmente avanzó
-                                        time.sleep(3)
-                                        new_url = self.driver.current_url
-                                        if ':192:' in new_url or 'P192' in new_url:
-                                            print("  ✓ Página cambió a resultados después del clic")
+                                        # Esperar explícitamente a que la URL cambie a página de resultados
+                                        url_changed = False
+                                        for wait_attempt in range(10):  # Esperar hasta 20 segundos
+                                            time.sleep(2)
+                                            current_url = self.driver.current_url
+                                            
+                                            if ':192:' in current_url or 'P192' in current_url:
+                                                print(f"  ✓ Página cambió a resultados después del clic (intento {wait_attempt + 1})")
+                                                print(f"  📋 URL de resultados: {current_url[:120]}...")
+                                                url_changed = True
+                                                break
+                                        
+                                        if url_changed:
+                                            print("  ✓ Quiz completado - Página de resultados detectada")
+                                            time.sleep(3)  # Esperar un poco más para que cargue completamente
                                             return False  # Quiz terminado
                                         else:
                                             print("  ⚠ El clic no parece haber funcionado, intentando método más agresivo...")

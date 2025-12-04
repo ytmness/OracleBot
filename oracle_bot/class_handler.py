@@ -286,20 +286,25 @@ class ClassHandler:
         try:
             print("\nBuscando clases disponibles...")
             
-            # Primero navegar a la página de clases si no estamos ahí
-            if not self.verify_classes_page_loaded():
-                print("No estamos en la página de clases, navegando...")
+            # Verificar URL actual
+            current_url = self.driver.current_url
+            print(f"  📋 URL actual: {current_url[:100]}...")
+            
+            # Verificar si ya estamos en la página de clases
+            already_on_classes_page = self.selectors.CLASSES_PAGE_PATTERN in current_url
+            
+            if not already_on_classes_page:
+                print("  ⚠ No estamos en la página de clases, navegando...")
                 if not self.navigate_to_classes():
                     print("⚠ No se pudo navegar a la página de clases")
                     return []
-            
-            # Verificar que la página esté cargada (solo si navegamos, no si ya estábamos ahí)
-            if self.selectors.CLASSES_PAGE_PATTERN not in current_url:
+                # Verificar que la página esté cargada después de navegar
                 self.verify_classes_page_loaded()
                 # Esperar un momento para que la página se estabilice después de navegar
                 time.sleep(2)
             else:
-                # Si ya estábamos en la página, solo esperar un momento para que se estabilice
+                print("  ✓ Ya estamos en la página de clases, buscando clases directamente...")
+                # Solo esperar un momento para que se estabilice
                 time.sleep(1)
             
             # Buscar los items de las clases con timeout más corto y múltiples intentos

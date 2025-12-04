@@ -2005,27 +2005,76 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                                 # Verificar si realmente avanzó (URL cambió o aparece página de resultados)
                                 time.sleep(3)
                                 new_url = self.driver.current_url
-                                if ':192:' in new_url or 'P192' in new_url or new_url != self.driver.current_url:
-                                    print("  ✓ Página cambió después del clic, quiz completado")
+                                
+                                # Verificar si cambió a página de resultados
+                                if ':192:' in new_url or 'P192' in new_url:
+                                    print("  ✓ Página cambió a resultados después del clic, quiz completado")
                                     return False  # Quiz terminado
-                                else:
-                                    print("  ⚠ El clic no parece haber funcionado, la página no cambió")
-                                    # Intentar una vez más con método más agresivo
-                                    try:
-                                        self.driver.execute_script("""
-                                            var btn = document.querySelector('button#quiz-submit');
-                                            if (btn) {
-                                                btn.click();
-                                                setTimeout(function() {
-                                                    if (btn.onclick) btn.onclick();
-                                                }, 100);
-                                            }
-                                        """)
-                                        time.sleep(5)
-                                    except:
-                                        pass
+                                
+                                # Verificar si todavía estamos en la misma pregunta
+                                try:
+                                    question_heading = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_HEADING)
+                                    heading_text = question_heading.text.strip()
+                                    if "Question 15 of 15" in heading_text:
+                                        print("  ⚠ Todavía estamos en la pregunta 15, el clic no funcionó")
+                                        print("  🔧 Intentando método más agresivo...")
+                                        
+                                        # Método más agresivo: usar JavaScript directo para encontrar y hacer clic
+                                        try:
+                                            self.driver.execute_script("""
+                                                // Buscar el botón por ID
+                                                var btn = document.getElementById('quiz-submit');
+                                                if (!btn) {
+                                                    // Buscar por data-otel-label
+                                                    btn = document.querySelector('button[data-otel-label=\"SUBMIT\"]');
+                                                }
+                                                if (btn) {
+                                                    // Remover cualquier overlay
+                                                    var overlays = document.querySelectorAll('div.ui-widget-overlay');
+                                                    overlays.forEach(function(overlay) {
+                                                        overlay.style.display = 'none';
+                                                    });
+                                                    
+                                                    // Hacer el botón visible y habilitado
+                                                    btn.style.display = 'block';
+                                                    btn.style.visibility = 'visible';
+                                                    btn.style.opacity = '1';
+                                                    btn.disabled = false;
+                                                    btn.removeAttribute('disabled');
+                                                    
+                                                    // Scroll al botón
+                                                    btn.scrollIntoView({behavior: 'smooth', block: 'center'});
+                                                    
+                                                    // Múltiples intentos de clic
+                                                    btn.click();
+                                                    setTimeout(function() {
+                                                        btn.click();
+                                                        var evt = new MouseEvent('click', {
+                                                            bubbles: true,
+                                                            cancelable: true,
+                                                            view: window
+                                                        });
+                                                        btn.dispatchEvent(evt);
+                                                    }, 500);
+                                                }
+                                            """)
+                                            time.sleep(5)
+                                            
+                                            # Verificar nuevamente
+                                            final_url = self.driver.current_url
+                                            if ':192:' in final_url or 'P192' in final_url:
+                                                print("  ✓ Método agresivo funcionó, página cambió a resultados")
+                                                return False
+                                            else:
+                                                print("  ⚠ Método agresivo tampoco funcionó, pero continuando...")
+                                        except Exception as e:
+                                            print(f"  ⚠ Error en método agresivo: {str(e)[:100]}")
                                     
-                                    return False  # Retornar False de todas formas para continuar
+                                    return False  # Retornar False para continuar
+                                except:
+                                    # Si no encuentra el heading, puede que haya avanzado
+                                    print("  ✓ No se encuentra el heading de pregunta, puede que haya avanzado")
+                                    return False
                             else:
                                 print("  ⚠ No se pudo hacer clic en el botón con ningún método")
                                 return False

@@ -287,127 +287,137 @@ def run_class_menu(driver: webdriver.Chrome, class_handler: ClassHandler, first_
                 choice = input("\nSeleccione una opción (1-3): ").strip()
                 
                 if choice == "1":
-                # Ver clases disponibles
-                classes = class_handler.get_available_classes()
-                if classes:
-                    print(f"\n✓ Total de clases encontradas: {len(classes)}")
-                else:
-                    print("\n⚠ No se encontraron clases disponibles")
+                    # Ver clases disponibles
+                    classes = class_handler.get_available_classes()
+                    if classes:
+                        print(f"\n✓ Total de clases encontradas: {len(classes)}")
+                    else:
+                        print("\n⚠ No se encontraron clases disponibles")
                 
                 elif choice == "2":
-                # Seleccionar clase y completar secciones
-                classes = class_handler.get_available_classes()
-                
-                if not classes:
-                    print("\n⚠ No hay clases disponibles")
-                    continue
-                
-                # Mostrar clases y permitir selección
-                print("\n" + "=" * 60)
-                print("CLASES DISPONIBLES")
-                print("=" * 60)
-                for cls in classes:
-                    print(f"\n{cls}")
-                
-                try:
-                    class_choice = int(input(f"\nSeleccione el número de clase (1-{len(classes)}): ").strip())
+                    # Seleccionar clase y completar secciones
+                    classes = class_handler.get_available_classes()
                     
-                    if class_choice < 1 or class_choice > len(classes):
-                        print("⚠ Selección inválida")
+                    if not classes:
+                        print("\n⚠ No hay clases disponibles")
                         continue
                     
-                    selected_class = classes[class_choice - 1]
+                    # Mostrar clases y permitir selección
+                    print("\n" + "=" * 60)
+                    print("CLASES DISPONIBLES")
+                    print("=" * 60)
+                    for cls in classes:
+                        print(f"\n{cls}")
                     
-                    # Seleccionar la clase
-                    if class_handler.select_class(selected_class):
-                        # Obtener secciones
-                        sections = class_handler.get_sections()
+                    try:
+                        class_choice = int(input(f"\nSeleccione el número de clase (1-{len(classes)}): ").strip())
                         
-                        if not sections:
-                            print("\n⚠ No se encontraron secciones")
+                        if class_choice < 1 or class_choice > len(classes):
+                            print("⚠ Selección inválida")
                             continue
                         
-                        # Mostrar secciones y permitir selección
-                        print("\n" + "=" * 60)
-                        print("SECCIONES DISPONIBLES")
-                        print("=" * 60)
-                        for section in sections:
-                            print(f"\n{section}")
+                        selected_class = classes[class_choice - 1]
                         
-                        try:
-                            section_choice = int(input(f"\nSeleccione hasta qué sección completar (1-{len(sections)}): ").strip())
+                        # Seleccionar la clase
+                        if class_handler.select_class(selected_class):
+                            # Obtener secciones
+                            sections = class_handler.get_sections()
                             
-                            if section_choice < 1 or section_choice > len(sections):
-                                print("⚠ Selección inválida")
+                            if not sections:
+                                print("\n⚠ No se encontraron secciones")
                                 continue
                             
-                            # Completar secciones hasta la seleccionada
-                            i = 0
-                            while i < section_choice:
-                                # Refrescar la lista de secciones antes de cada iteración
-                                print(f"\n📋 Obteniendo lista actualizada de secciones...")
-                                sections = class_handler.get_sections()
+                            # Mostrar secciones y permitir selección
+                            print("\n" + "=" * 60)
+                            print("SECCIONES DISPONIBLES")
+                            print("=" * 60)
+                            for section in sections:
+                                print(f"\n{section}")
+                            
+                            try:
+                                section_choice = int(input(f"\nSeleccione hasta qué sección completar (1-{len(sections)}): ").strip())
                                 
-                                if not sections:
-                                    print("⚠ No se pudieron obtener las secciones, deteniendo...")
-                                    break
-                                
-                                # Verificar que el índice es válido
-                                if i >= len(sections):
-                                    print(f"\n⚠ No hay más secciones disponibles (índice {i+1} fuera de rango)")
-                                    break
-                                
-                                section = sections[i]
-                                
-                                if section.is_complete:
-                                    print(f"\n⏭ Sección {i+1} ya está completada, saltando...")
-                                    i += 1
+                                if section_choice < 1 or section_choice > len(sections):
+                                    print("⚠ Selección inválida")
                                     continue
                                 
-                                print(f"\n{'='*60}")
-                                print(f"PROCESANDO SECCIÓN {i+1}/{section_choice}: {section.title}")
-                                print(f"{'='*60}")
-                                
-                                # Seleccionar sección
-                                if class_handler.select_section(section):
-                                    # Completar la sección (hacer el primer quiz)
-                                    class_handler.complete_section(max_quizzes=1)
+                                # Completar secciones hasta la seleccionada
+                                i = 0
+                                while i < section_choice:
+                                    # Refrescar la lista de secciones antes de cada iteración
+                                    print(f"\n📋 Obteniendo lista actualizada de secciones...")
+                                    sections = class_handler.get_sections()
                                     
-                                    # Volver a la lista de secciones
-                                    print("\n🔄 Regresando a la lista de secciones...")
-                                    if not class_handler.go_back_to_sections():
-                                        print("⚠ No se pudo volver a la lista de secciones, intentando refrescar...")
-                                        # Intentar refrescar la página
-                                        class_handler.driver.refresh()
-                                        time.sleep(3)
+                                    if not sections:
+                                        print("⚠ No se pudieron obtener las secciones, deteniendo...")
+                                        break
                                     
-                                    # Esperar un momento antes de continuar
-                                    time.sleep(2)
+                                    # Verificar que el índice es válido
+                                    if i >= len(sections):
+                                        print(f"\n⚠ No hay más secciones disponibles (índice {i+1} fuera de rango)")
+                                        break
                                     
-                                    # Avanzar al siguiente índice
-                                    i += 1
-                                else:
-                                    print(f"⚠ No se pudo seleccionar la sección {i+1}, intentando continuar...")
-                                    i += 1
-                                
-                        except ValueError:
-                            print("⚠ Por favor ingrese un número válido")
-                        except KeyboardInterrupt:
-                            print("\n\nOperación cancelada por el usuario")
-                            break
-                    
-                except ValueError:
-                    print("⚠ Por favor ingrese un número válido")
-                except KeyboardInterrupt:
-                    print("\n\nOperación cancelada por el usuario")
+                                    section = sections[i]
+                                    
+                                    if section.is_complete:
+                                        print(f"\n⏭ Sección {i+1} ya está completada, saltando...")
+                                        i += 1
+                                        continue
+                                    
+                                    print(f"\n{'='*60}")
+                                    print(f"PROCESANDO SECCIÓN {i+1}/{section_choice}: {section.title}")
+                                    print(f"{'='*60}")
+                                    
+                                    # Seleccionar sección
+                                    if class_handler.select_section(section):
+                                        # Completar la sección (hacer el primer quiz)
+                                        class_handler.complete_section(max_quizzes=1)
+                                        
+                                        # Volver a la lista de secciones
+                                        print("\n🔄 Regresando a la lista de secciones...")
+                                        if not class_handler.go_back_to_sections():
+                                            print("⚠ No se pudo volver a la lista de secciones, intentando refrescar...")
+                                            # Intentar refrescar la página
+                                            class_handler.driver.refresh()
+                                            time.sleep(3)
+                                        
+                                        # Esperar un momento antes de continuar
+                                        time.sleep(2)
+                                        
+                                        # Después de completar la primera sección, continuar automáticamente
+                                        if i == 0:
+                                            print("\n🔄 Continuando automáticamente con las siguientes secciones...")
+                                            # Continuar automáticamente desde la siguiente sección
+                                            continue_automatically(class_handler, class_choice - 1, i)
+                                            break  # Salir del loop manual, ya que continue_automatically maneja el resto
+                                        
+                                        # Avanzar al siguiente índice
+                                        i += 1
+                                    else:
+                                        print(f"⚠ No se pudo seleccionar la sección {i+1}, intentando continuar...")
+                                        i += 1
+                                    
+                            except ValueError:
+                                print("⚠ Por favor ingrese un número válido")
+                            except KeyboardInterrupt:
+                                print("\n\nOperación cancelada por el usuario")
+                                break
+                        
+                    except ValueError:
+                        print("⚠ Por favor ingrese un número válido")
+                    except KeyboardInterrupt:
+                        print("\n\nOperación cancelada por el usuario")
+                        break
+                
+                elif choice == "3":
+                    print("\nSaliendo...")
                     break
-            
-            elif choice == "3":
-                print("\nSaliendo...")
-                break
-            
-            else:
-                print("⚠ Opción inválida, por favor seleccione 1, 2 o 3")
+                
+                else:
+                    print("⚠ Opción inválida, por favor seleccione 1, 2 o 3")
+        else:
+            # No es la primera vez: continuar automáticamente
+            continue_automatically(class_handler)
     
     except KeyboardInterrupt:
         print("\n\nProceso interrumpido por el usuario")

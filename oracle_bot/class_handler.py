@@ -1273,7 +1273,8 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             window_count_before = len(self.driver.window_handles)
             
             # Esperar un momento para que cualquier modal/popup se abra o nueva ventana
-            time.sleep(3)
+            print("  ⏳ Esperando a que aparezca el modal/botón...")
+            time.sleep(4)
             
             window_count_after = len(self.driver.window_handles)
             if window_count_after > window_count_before:
@@ -1288,25 +1289,75 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             # Usar WebDriverWait para esperar que aparezca el botón o modal
             from selenium.webdriver.support.ui import WebDriverWait
             from selenium.webdriver.support import expected_conditions as EC
-            wait_modal = WebDriverWait(self.driver, 10)
+            wait_modal = WebDriverWait(self.driver, 15)
             
-            # Intentar esperar a que aparezca el botón directamente
+            # DEBUG: Mostrar información de la página actual
+            print(f"  🔍 DEBUG - URL actual: {self.driver.current_url}")
+            print(f"  🔍 DEBUG - Título de la página: {self.driver.title}")
+            
+            # Buscar TODOS los botones visibles en la página para debugging
             try:
+                all_buttons = self.driver.find_elements(By.TAG_NAME, "button")
+                visible_buttons = []
+                for btn in all_buttons:
+                    try:
+                        if btn.is_displayed():
+                            btn_text = btn.text.strip()
+                            btn_id = btn.get_attribute('id') or ''
+                            btn_data_label = btn.get_attribute('data-otel-label') or ''
+                            if 'complete' in btn_text.lower() or 'CONFIRMCOMPLETE' in btn_data_label:
+                                visible_buttons.append({
+                                    'text': btn_text,
+                                    'id': btn_id,
+                                    'data-otel-label': btn_data_label
+                                })
+                    except:
+                        continue
+                
+                if visible_buttons:
+                    print(f"  🔍 DEBUG - Encontrados {len(visible_buttons)} botón(es) con 'Complete' o CONFIRMCOMPLETE:")
+                    for idx, btn_info in enumerate(visible_buttons[:5], 1):
+                        print(f"    {idx}. texto='{btn_info['text']}', id='{btn_info['id']}', data-otel-label='{btn_info['data-otel-label']}'")
+            except:
+                pass
+            
+            # Método PRIMERO: Buscar directamente el botón por data-otel-label (más rápido)
+            try:
+                print("  🔍 Buscando botón por data-otel-label='CONFIRMCOMPLETE'...")
                 complete_button = wait_modal.until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']"))
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']"))
                 )
-                if complete_button.is_displayed():
-                    print("  ✓ Botón 'Complete Assessment' encontrado (espera explícita)")
+                
+                # Verificar visibilidad con JavaScript
+                is_visible = self.driver.execute_script(
+                    "return arguments[0].offsetParent !== null && "
+                    "window.getComputedStyle(arguments[0]).display !== 'none' && "
+                    "window.getComputedStyle(arguments[0]).visibility !== 'hidden';",
+                    complete_button
+                )
+                
+                if is_visible:
+                    print("  ✓ Botón 'Complete Assessment' encontrado (por data-otel-label)")
                     self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                    time.sleep(0.8)
-                    complete_button.click()
+                    time.sleep(1)
+                    
+                    # Intentar hacer clic con JavaScript si el clic normal falla
+                    try:
+                        complete_button.click()
+                    except:
+                        print("  ⚠ Clic normal falló, intentando con JavaScript...")
+                        self.driver.execute_script("arguments[0].click();", complete_button)
+                    
                     time.sleep(4)
                     print("  ✓ Clic en 'Complete Assessment' realizado")
                     # Si cambiamos de ventana, volver a la original
                     if window_count_after > window_count_before:
                         self.driver.switch_to.window(original_window)
                     return True
-            except:
+                else:
+                    print("  ⚠ Botón encontrado pero no está visible")
+            except Exception as e:
+                print(f"  ⚠ No se encontró botón por data-otel-label: {str(e)}")
                 pass
             
             # Intentar esperar a que aparezca el overlay ui-widget-overlay (jQuery UI modal)

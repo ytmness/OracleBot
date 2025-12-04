@@ -2410,6 +2410,13 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             max_consecutive_errors = 3
             
             while questions_answered < max_questions:
+                # Verificar primero si estamos en la página de resultados (p=63000:192)
+                current_url = self.driver.current_url
+                if ':192:' in current_url or 'P192' in current_url:
+                    print("  ✓ Quiz completado - Detectada página de resultados (p=63000:192)")
+                    print("  📋 Ya estamos en la página de calificaciones, no hay más preguntas")
+                    break
+                
                 # Esperar un momento para que la página se estabilice
                 time.sleep(1)
                 
@@ -2419,33 +2426,44 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                     question_container = self.driver.find_element(By.CSS_SELECTOR, self.selectors.QUESTION_TEXT)
                     if not question_container.is_displayed():
                         print("  ⚠ Contenedor de pregunta no visible, puede que el quiz haya terminado")
+                        # Verificar si estamos en página de resultados
+                        current_url = self.driver.current_url
+                        if ':192:' in current_url or 'P192' in current_url:
+                            print("  ✓ Confirmado: estamos en página de resultados")
+                            break
                         break
                 except:
-                    # Si no encuentra el contenedor, verificar si hay mensaje de finalización o botón Complete
+                    # Si no encuentra el contenedor, verificar si estamos en página de resultados
+                    current_url = self.driver.current_url
+                    if ':192:' in current_url or 'P192' in current_url:
+                        print("  ✓ Quiz completado - Detectada página de resultados (p=63000:192)")
+                        break
+                    
+                    # Si no encuentra el contenedor, verificar si hay mensaje de finalización
                     try:
                         # Buscar indicadores de que el quiz terminó
                         page_text = self.driver.page_source.lower()
                         if "quiz complete" in page_text or "assessment complete" in page_text or "results" in page_text:
                             print("  ✓ Quiz completado (indicador encontrado en página)")
-                            # Intentar hacer clic en Complete Assessment
+                            # Verificar URL para confirmar
+                            current_url = self.driver.current_url
+                            if ':192:' in current_url or 'P192' in current_url:
+                                print("  ✓ Confirmado: estamos en página de resultados")
+                                break
+                            # Si no estamos en resultados, intentar hacer clic en Complete Assessment
                             time.sleep(2)
                             if self.click_complete_assessment_button():
                                 print("  ✓ Botón 'Complete Assessment' clickeado")
-                            break
-                        
-                        # También buscar el botón Complete Assessment directamente
-                        time.sleep(2)
-                        if self.click_complete_assessment_button():
-                            print("  ✓ Botón 'Complete Assessment' encontrado y clickeado")
                             break
                     except:
                         pass
                     
                     print("  ⚠ No se encontró contenedor de pregunta, puede que el quiz haya terminado")
-                    # Último intento de buscar Complete Assessment
-                    time.sleep(2)
-                    if self.click_complete_assessment_button():
-                        print("  ✓ Botón 'Complete Assessment' encontrado al final")
+                    # Verificar URL una vez más
+                    current_url = self.driver.current_url
+                    if ':192:' in current_url or 'P192' in current_url:
+                        print("  ✓ Confirmado: estamos en página de resultados")
+                        break
                     break
                 
                 # Extraer pregunta y opciones
@@ -2600,8 +2618,9 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                                 # Verificar si cambió a página de resultados (p=63000:192)
                                 if ':192:' in current_url or 'P192' in current_url:
                                     print(f"  📋 Página cambió a resultados: {current_url[:100]}...")
+                                    print("  ✓ Quiz completado - Página de resultados detectada")
                                     time.sleep(3)  # Esperar a que cargue
-                                    break
+                                    break  # Salir del loop, el quiz terminó
                                 
                                 # Intentar buscar el botón en la página del quiz
                                 try:

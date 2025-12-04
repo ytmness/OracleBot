@@ -1262,17 +1262,72 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
     def click_complete_assessment_button(self) -> bool:
         """
         Busca y hace clic en el botón "Complete Assessment" con múltiples métodos
+        Maneja modales/popups que puedan contener el botón
         
         Returns:
             True si encontró y clickeó el botón, False en caso contrario
         """
         try:
-            # Método 1: Buscar por selector CSS
+            # Esperar un momento para que cualquier modal/popup se abra
+            time.sleep(2)
+            
+            # Método 0: Buscar en div.t-ButtonRegion-buttons (como en el HTML proporcionado)
             try:
-                complete_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.COMPLETE_ASSESSMENT_BUTTON)
-                button_text = complete_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
-                if "Complete Assessment" in button_text or "Complete" in button_text:
-                    print("  ✓ Encontrado botón 'Complete Assessment' (por CSS)")
+                button_regions = self.driver.find_elements(By.CSS_SELECTOR, "div.t-ButtonRegion-buttons")
+                print(f"  📋 Encontrados {len(button_regions)} div.t-ButtonRegion-buttons")
+                for region in button_regions:
+                    try:
+                        if region.is_displayed():
+                            # Buscar el botón dentro del div
+                            complete_button = region.find_element(By.CSS_SELECTOR, 
+                                "button[data-otel-label='CONFIRMCOMPLETE']")
+                            
+                            if complete_button and complete_button.is_displayed():
+                                print("  ✓ Encontrado botón 'Complete Assessment' en t-ButtonRegion")
+                                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                                time.sleep(0.8)
+                                complete_button.click()
+                                time.sleep(4)
+                                print("  ✓ Clic en 'Complete Assessment' realizado")
+                                return True
+                    except:
+                        continue
+            except:
+                pass
+            
+            # Método 1: Buscar modales/popups primero y cambiar el contexto si es necesario
+            try:
+                # Buscar modales comunes (dialog, modal, popup)
+                modals = self.driver.find_elements(By.CSS_SELECTOR, 
+                    "div[role='dialog'], div.ui-dialog, div.modal, div.popup, div.t-Dialog, div[class*='Dialog'], div[class*='Modal']")
+                
+                if modals:
+                    print(f"  📋 Encontrado {len(modals)} modal(es)/popup(s), buscando botón dentro...")
+                    for modal in modals:
+                        try:
+                            if modal.is_displayed():
+                                # Buscar el botón dentro del modal
+                                complete_button = modal.find_element(By.CSS_SELECTOR, 
+                                    "button[data-otel-label='CONFIRMCOMPLETE']")
+                                
+                                if complete_button and complete_button.is_displayed():
+                                    print("  ✓ Encontrado botón 'Complete Assessment' en modal")
+                                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                                    time.sleep(0.8)
+                                    complete_button.click()
+                                    time.sleep(4)
+                                    print("  ✓ Clic en 'Complete Assessment' realizado")
+                                    return True
+                        except:
+                            continue
+            except:
+                pass
+            
+            # Método 2: Buscar por data-otel-label (más específico, debe ser prioritario)
+            try:
+                complete_button = self.driver.find_element(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
+                if complete_button.is_displayed():
+                    print("  ✓ Encontrado botón 'Complete Assessment' (por data-otel-label)")
                     self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
                     time.sleep(0.8)
                     complete_button.click()
@@ -1282,51 +1337,26 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             except:
                 pass
             
-            # Método 2: Buscar por XPath con texto
+            # Método 3: Buscar por ID que empiece con B y data-otel-label
             try:
-                complete_button = self.driver.find_element(By.XPATH, self.selectors.COMPLETE_ASSESSMENT_BUTTON_XPATH)
-                print("  ✓ Encontrado botón 'Complete Assessment' (por XPath)")
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                time.sleep(0.8)
-                complete_button.click()
-                time.sleep(4)
-                print("  ✓ Clic en 'Complete Assessment' realizado")
-                return True
-            except:
-                pass
-            
-            # Método 3: Buscar por data-otel-label
-            try:
-                complete_button = self.driver.find_element(By.CSS_SELECTOR, "button[data-otel-label='CONFIRMCOMPLETE']")
-                print("  ✓ Encontrado botón 'Complete Assessment' (por data-otel-label)")
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                time.sleep(0.8)
-                complete_button.click()
-                time.sleep(4)
-                print("  ✓ Clic en 'Complete Assessment' realizado")
-                return True
+                buttons = self.driver.find_elements(By.CSS_SELECTOR, "button[id^='B'][data-otel-label='CONFIRMCOMPLETE']")
+                for button in buttons:
+                    if button.is_displayed():
+                        print("  ✓ Encontrado botón 'Complete Assessment' (por ID y data-otel-label)")
+                        self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", button)
+                        time.sleep(0.8)
+                        button.click()
+                        time.sleep(4)
+                        print("  ✓ Clic en 'Complete Assessment' realizado")
+                        return True
             except:
                 pass
             
             # Método 4: Buscar cualquier botón con texto "Complete Assessment"
             try:
                 complete_button = self.driver.find_element(By.XPATH, "//button[contains(., 'Complete Assessment')]")
-                print("  ✓ Encontrado botón 'Complete Assessment' (por texto)")
-                self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
-                time.sleep(0.8)
-                complete_button.click()
-                time.sleep(4)
-                print("  ✓ Clic en 'Complete Assessment' realizado")
-                return True
-            except:
-                pass
-            
-            # Método 5: Buscar por ID que empiece con B (patrón común)
-            try:
-                buttons = self.driver.find_elements(By.CSS_SELECTOR, "button[id^='B'][data-otel-label='CONFIRMCOMPLETE']")
-                if buttons:
-                    complete_button = buttons[0]
-                    print("  ✓ Encontrado botón 'Complete Assessment' (por ID y data-otel-label)")
+                if complete_button.is_displayed():
+                    print("  ✓ Encontrado botón 'Complete Assessment' (por texto)")
                     self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
                     time.sleep(0.8)
                     complete_button.click()
@@ -1336,10 +1366,43 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
             except:
                 pass
             
+            # Método 5: Buscar por selector CSS estándar
+            try:
+                complete_button = self.driver.find_element(By.CSS_SELECTOR, self.selectors.COMPLETE_ASSESSMENT_BUTTON)
+                if complete_button.is_displayed():
+                    button_text = complete_button.find_element(By.CSS_SELECTOR, "span.t-Button-label").text.strip()
+                    if "Complete Assessment" in button_text or "Complete" in button_text:
+                        print("  ✓ Encontrado botón 'Complete Assessment' (por CSS)")
+                        self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                        time.sleep(0.8)
+                        complete_button.click()
+                        time.sleep(4)
+                        print("  ✓ Clic en 'Complete Assessment' realizado")
+                        return True
+            except:
+                pass
+            
+            # Método 6: Buscar por XPath con texto
+            try:
+                complete_button = self.driver.find_element(By.XPATH, self.selectors.COMPLETE_ASSESSMENT_BUTTON_XPATH)
+                if complete_button.is_displayed():
+                    print("  ✓ Encontrado botón 'Complete Assessment' (por XPath)")
+                    self.driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", complete_button)
+                    time.sleep(0.8)
+                    complete_button.click()
+                    time.sleep(4)
+                    print("  ✓ Clic en 'Complete Assessment' realizado")
+                    return True
+            except:
+                pass
+            
+            print("  ⚠ No se encontró el botón 'Complete Assessment' en ningún lugar")
             return False
             
         except Exception as e:
             print(f"  ⚠ Error al buscar botón 'Complete Assessment': {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def go_to_next_question(self) -> bool:

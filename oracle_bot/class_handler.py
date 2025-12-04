@@ -2077,15 +2077,25 @@ Responde SOLO con el número de la opción correcta (1, 2, 3, etc.). No incluyas
                                                     }, 500);
                                                 }
                                             """)
-                                            time.sleep(5)
+                                            # Esperar y verificar nuevamente
+                                            print("  ⏳ Esperando después del método agresivo...")
+                                            url_changed = False
+                                            for wait_attempt in range(10):  # Esperar hasta 20 segundos
+                                                time.sleep(2)
+                                                final_url = self.driver.current_url
+                                                
+                                                if ':192:' in final_url or 'P192' in final_url:
+                                                    print(f"  ✓ Método agresivo funcionó, página cambió a resultados (intento {wait_attempt + 1})")
+                                                    print(f"  📋 URL de resultados: {final_url[:120]}...")
+                                                    url_changed = True
+                                                    break
                                             
-                                            # Verificar nuevamente
-                                            final_url = self.driver.current_url
-                                            if ':192:' in final_url or 'P192' in final_url:
-                                                print("  ✓ Método agresivo funcionó, página cambió a resultados")
+                                            if url_changed:
+                                                time.sleep(3)  # Esperar un poco más para que cargue completamente
                                                 return False
                                             else:
                                                 print("  ⚠ Método agresivo tampoco funcionó, pero continuando...")
+                                                print(f"  📋 URL actual: {self.driver.current_url[:120]}...")
                                         except Exception as e:
                                             print(f"  ⚠ Error en método agresivo: {str(e)[:100]}")
                                     

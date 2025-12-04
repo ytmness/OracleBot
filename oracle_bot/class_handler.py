@@ -1011,18 +1011,37 @@ class ClassHandler:
                         )
                         print("  ✓ Encontrado botón 'Take Class', haciendo clic...")
                         take_class_button.click()
-                        time.sleep(3)
-                        # Ahora deberíamos estar en la página de la clase (p=63000:14)
-                        # Desde ahí podemos buscar el enlace a secciones
+                        time.sleep(5)  # Esperar más tiempo para que cargue la página de la clase
+                        
+                        # Verificar que estamos en la página de la clase (debería tener secciones)
+                        current_url = self.driver.current_url
+                        print(f"  📋 URL después de hacer clic en 'Take Class': {current_url[:100]}...")
+                        
+                        # Esperar a que aparezcan las secciones
                         try:
-                            sections_link = self.driver.find_element(By.CSS_SELECTOR, "a[href*='63000:15']")
-                            sections_link.click()
-                            time.sleep(3)
-                            print("✓ Navegado a secciones desde la clase")
+                            from selenium.webdriver.support.ui import WebDriverWait
+                            wait = WebDriverWait(self.driver, 10)
+                            wait.until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, self.selectors.SECTION_ITEM))
+                            )
+                            print("✓ Secciones encontradas después de hacer clic en 'Take Class'")
                             return True
                         except:
-                            print("⚠ No se encontró enlace a secciones, pero continuando...")
-                            return True
+                            # Si no encuentra secciones directamente, buscar enlace a secciones
+                            try:
+                                sections_link = self.driver.find_element(By.CSS_SELECTOR, "a[href*='63000:15']")
+                                sections_link.click()
+                                time.sleep(5)
+                                print("✓ Navegado a secciones desde la clase")
+                                return True
+                            except:
+                                print("⚠ No se encontró enlace a secciones, pero continuando...")
+                                # Verificar si ya estamos en secciones
+                                current_url = self.driver.current_url
+                                if "63000:15" in current_url or "P15" in current_url:
+                                    print("✓ Ya estamos en la página de secciones")
+                                    return True
+                                return True
                     except Exception as e:
                         print(f"⚠ Error al hacer clic en 'Take Class': {str(e)}")
                         return True  # Continuar de todas formas
